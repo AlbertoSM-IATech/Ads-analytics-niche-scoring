@@ -12,11 +12,13 @@ import {
 import { createCampaign } from "../lib/api";
 import { useData } from "../context/DataContext";
 import { toast } from "sonner";
+import { getMarketplace } from "../lib/format";
 
 const emptyKw = { term: "", clicks: 0, cpc: 0, orders: 0 };
 
 export default function AddCampaignWizard({ open, onOpenChange, onCreated }) {
-  const { active, loadActive } = useData();
+  const { active, loadActive, marketplace } = useData();
+  const mp = getMarketplace(marketplace);
   const [form, setForm] = useState({
     campaign: "",
     ad_type: "SP",
@@ -87,6 +89,9 @@ export default function AddCampaignWizard({ open, onOpenChange, onCreated }) {
         <DialogHeader>
           <DialogTitle className="font-heading flex items-center gap-2">
             <Megaphone className="size-5 text-coral" /> Nueva campaña
+            <span className="badge-pill bg-muted border-border text-muted-foreground ml-auto text-xs">
+              {mp.flag} {mp.name}
+            </span>
           </DialogTitle>
           <DialogDescription>
             Crea una campaña y añade las keywords iniciales. El gasto y ventas se autocalcularán.
@@ -149,6 +154,8 @@ export default function AddCampaignWizard({ open, onOpenChange, onCreated }) {
                   />
                   <Input
                     type="number"
+                    min={0}
+                    step={1}
                     placeholder="clicks"
                     value={k.clicks}
                     onChange={(e) => updKw(i, { clicks: e.target.value })}
@@ -156,7 +163,8 @@ export default function AddCampaignWizard({ open, onOpenChange, onCreated }) {
                   />
                   <Input
                     type="number"
-                    step="0.01"
+                    min={0}
+                    step={0.01}
                     placeholder="CPC"
                     value={k.cpc}
                     onChange={(e) => updKw(i, { cpc: e.target.value })}
@@ -164,6 +172,8 @@ export default function AddCampaignWizard({ open, onOpenChange, onCreated }) {
                   />
                   <Input
                     type="number"
+                    min={0}
+                    step={1}
                     placeholder="pedidos"
                     value={k.orders}
                     onChange={(e) => updKw(i, { orders: e.target.value })}

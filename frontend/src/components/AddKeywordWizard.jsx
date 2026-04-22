@@ -14,7 +14,6 @@ import { useData } from "../context/DataContext";
 import { toast } from "sonner";
 import { fmtPct, fmtMoney, getMarketplace } from "../lib/format";
 import { InfoTooltip } from "./InfoTooltip";
-
 const emptyForm = {
   term: "",
   campaign: "",
@@ -118,6 +117,9 @@ export default function AddKeywordWizard({ open, onOpenChange, onCreated }) {
         <DialogHeader>
           <DialogTitle className="font-heading flex items-center gap-2">
             <Plus className="size-5 text-coral" /> Añadir keyword
+            <span className="badge-pill bg-muted border-border text-muted-foreground ml-auto text-xs">
+              {getMarketplace(marketplace).flag} {getMarketplace(marketplace).name}
+            </span>
           </DialogTitle>
           <DialogDescription>{stepTitle[step]}</DialogDescription>
         </DialogHeader>
@@ -185,27 +187,27 @@ export default function AddKeywordWizard({ open, onOpenChange, onCreated }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Impresiones</Label>
-                <Input type="number" value={form.impressions} onChange={(e) => setForm({ ...form, impressions: e.target.value })} className="rounded-md mt-1 num" data-testid="wiz-impressions" />
+                <Input type="number" min={0} step={1} value={form.impressions} onChange={(e) => setForm({ ...form, impressions: e.target.value })} className="rounded-md mt-1 num" data-testid="wiz-impressions" />
               </div>
               <div>
                 <Label className="text-xs">Clicks</Label>
-                <Input type="number" value={form.clicks} onChange={(e) => setForm({ ...form, clicks: e.target.value })} className="rounded-md mt-1 num" data-testid="wiz-clicks" />
+                <Input type="number" min={0} step={1} value={form.clicks} onChange={(e) => setForm({ ...form, clicks: e.target.value })} className="rounded-md mt-1 num" data-testid="wiz-clicks" />
               </div>
               <div>
                 <Label className="text-xs flex items-center gap-1">CPC <InfoTooltip content="cpc" /></Label>
-                <Input type="number" step="0.01" value={form.cpc} onChange={(e) => setForm({ ...form, cpc: e.target.value })} className="rounded-md mt-1 num" data-testid="wiz-cpc" />
+                <Input type="number" min={0} step={0.01} value={form.cpc} onChange={(e) => setForm({ ...form, cpc: e.target.value })} className="rounded-md mt-1 num" data-testid="wiz-cpc" />
               </div>
               <div>
                 <Label className="text-xs">Gasto (auto)</Label>
-                <Input type="number" step="0.01" value={form.spend} onChange={(e) => setForm({ ...form, spend: e.target.value })} className="rounded-md mt-1 num" placeholder={(pv.spend || 0).toFixed(2)} data-testid="wiz-spend" />
+                <Input type="number" min={0} step={0.01} value={form.spend} onChange={(e) => setForm({ ...form, spend: e.target.value })} className="rounded-md mt-1 num" placeholder={(pv.spend || 0).toFixed(2)} data-testid="wiz-spend" />
               </div>
               <div>
                 <Label className="text-xs">Pedidos</Label>
-                <Input type="number" value={form.orders} onChange={(e) => setForm({ ...form, orders: e.target.value })} className="rounded-md mt-1 num" data-testid="wiz-orders" />
+                <Input type="number" min={0} step={1} value={form.orders} onChange={(e) => setForm({ ...form, orders: e.target.value })} className="rounded-md mt-1 num" data-testid="wiz-orders" />
               </div>
               <div>
                 <Label className="text-xs">Ventas (auto)</Label>
-                <Input type="number" step="0.01" value={form.sales} onChange={(e) => setForm({ ...form, sales: e.target.value })} className="rounded-md mt-1 num" placeholder={(pv.sales || 0).toFixed(2)} data-testid="wiz-sales" />
+                <Input type="number" min={0} step={0.01} value={form.sales} onChange={(e) => setForm({ ...form, sales: e.target.value })} className="rounded-md mt-1 num" placeholder={(pv.sales || 0).toFixed(2)} data-testid="wiz-sales" />
               </div>
             </div>
           </div>

@@ -40,7 +40,7 @@ const cols = [
   { k: "_act", label: "" },
 ];
 
-function EditableCell({ value, onSave, type = "number", testid }) {
+function EditableCell({ value, onSave, integer = false, testid }) {
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(value ?? 0);
   useEffect(() => setVal(value ?? 0), [value]);
@@ -52,7 +52,9 @@ function EditableCell({ value, onSave, type = "number", testid }) {
         title="Doble click para editar"
         data-testid={testid}
       >
-        {typeof value === "number" ? (value ?? 0).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value}
+        {integer
+          ? (Number(value) || 0).toLocaleString("es-ES", { maximumFractionDigits: 0 })
+          : (Number(value) || 0).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </span>
     );
   }
@@ -60,17 +62,18 @@ function EditableCell({ value, onSave, type = "number", testid }) {
     <span className="inline-flex items-center gap-1">
       <Input
         autoFocus
-        type={type}
-        step="0.01"
-        className="h-7 w-20 rounded-sm num text-right px-1"
+        type="number"
+        min={0}
+        step={integer ? 1 : 0.01}
+        className="h-7 w-24 rounded-sm num text-right px-1"
         value={val}
         onChange={(e) => setVal(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter") { onSave(Number(val) || 0); setEditing(false); }
+          if (e.key === "Enter") { onSave(integer ? Math.round(Number(val) || 0) : Number(val) || 0); setEditing(false); }
           if (e.key === "Escape") { setEditing(false); setVal(value ?? 0); }
         }}
       />
-      <button onClick={() => { onSave(Number(val) || 0); setEditing(false); }} className="text-green-600 hover:text-green-700">
+      <button onClick={() => { onSave(integer ? Math.round(Number(val) || 0) : Number(val) || 0); setEditing(false); }} className="text-green-600 hover:text-green-700">
         <Check className="size-3.5" />
       </button>
       <button onClick={() => { setEditing(false); setVal(value ?? 0); }} className="text-muted-foreground hover:text-destructive">
@@ -135,6 +138,22 @@ export default function KeywordsUnified({ datasetId }) {
     try {
       await upsertKeyword(datasetId, { term, [field]: value });
       toast.success(`${field} actualizado`);
+      await load();
+      await loadActive(datasetId);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || e.message);
+    }
+  };
+
+  const saveCellWithAutoSpend = async (term, field, value, otherValue) => {
+    try {
+      const payload = { term, [field]: value };
+      // Recalculate spend automatically if we have both clicks and cpc
+      const clicks = field === "clicks" ? value : Number(otherValue) || 0;
+      const cpc = field === "cpc" ? value : Number(otherValue) || 0;
+      if (clicks && cpc) payload.spend = Number((clicks * cpc).toFixed(2));
+      await upsertKeyword(datasetId, payload);
+      toast.success(`${field} actualizado (gasto recalculado)`);
       await load();
       await loadActive(datasetId);
     } catch (e) {
@@ -231,14 +250,14 @@ export default function KeywordsUnified({ datasetId }) {
                     )}
                   </td>
                   <td className="px-3 py-2 num text-right">
-                    <EditableCell value={r.impressions} onSave={(v) => saveCell(r.term, "impressions", v)} testid={`edit-impr-${i}`} />
+                    <EditableCell value={r.impressions} integer onSave={(v) => saveCell(r.term, "impressions", v)} testid={`edit-impr-${i}`} />
                   </td>
                   <td className="px-3 py-2 num text-right">
-                    <EditableCell value={r.clicks} onSave={(v) => saveCell(r.term, "clicks", v)} testid={`edit-clicks-${i}`} />
+                    <EditableCell value={r.clicks} integer onSave={(v) => saveCellWithAutoSpend(r.term, "clicks", v, r.cpc)} testid={`edit-clicks-${i}`} />
                   </td>
                   <td className="px-3 py-2 num text-right">{fmtPct(r.ctr)}</td>
                   <td className="px-3 py-2 num text-right">
-                    <EditableCell value={r.cpc} onSave={(v) => saveCell(r.term, "cpc", v)} testid={`edit-cpc-${i}`} />
+                    <EditableCell value={r.cpc} onSave={(v) => saveCellWithAutoSpend(r.term, "cpc", v, r.clicks)} testid={`edit-cpc-${i}`} />
                   </td>
                   <td className="px-3 py-2 num text-right">
                     <EditableCell value={r.spend} onSave={(v) => saveCell(r.term, "spend", v)} testid={`edit-spend-${i}`} />
@@ -247,7 +266,7 @@ export default function KeywordsUnified({ datasetId }) {
                     <EditableCell value={r.sales} onSave={(v) => saveCell(r.term, "sales", v)} testid={`edit-sales-${i}`} />
                   </td>
                   <td className="px-3 py-2 num text-right">
-                    <EditableCell value={r.orders} onSave={(v) => saveCell(r.term, "orders", v)} testid={`edit-orders-${i}`} />
+                    <EditableCell value={r.orders} integer onSave={(v) => saveCell(r.term, "orders", v)} testid={`edit-orders-${i}`} />
                   </td>
                   <td className="px-3 py-2 num text-right">{fmtPct(r.cvr)}</td>
                   <td className={`px-3 py-2 num text-right ${acosColor(r.acos_actual)}`}>

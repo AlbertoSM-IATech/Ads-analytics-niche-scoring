@@ -16,6 +16,9 @@ from acos_calc import (
     beneficio_ahora, beneficio_siguiente_click, conversion_pct,
     guias_fase, determinar_badge,
 )
+from market_score import (
+    calculate_market_score, label_for_score, acos_siguiente_sin_venta_pct,
+)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -58,6 +61,15 @@ class KeywordOverrideIn(BaseModel):
     notes: Optional[str] = None
     match_type: Optional[str] = None
     ad_type: Optional[str] = None
+    # Niche study fields (per-keyword)
+    search_volume: Optional[float] = None
+    competitors: Optional[float] = None
+    kw_price: Optional[float] = None
+    kw_royalties: Optional[float] = None
+    demand_checks: Optional[int] = None         # 0..6
+    competition_checks: Optional[int] = None    # 0..3
+    keyword_status: Optional[str] = None        # pending|validated|rejected|testing
+    auto_spend: Optional[bool] = None           # if true, spend = clicks*cpc
 
 
 class CampaignCreateIn(BaseModel):
@@ -88,8 +100,16 @@ def _merge_rows_with_overrides(rows: list[dict], overrides: dict[str, dict], key
                   "campaign", "notes", "match_type", "ad_type"):
             if ov.get(f) is not None:
                 merged[f] = ov[f]
+        # Auto-calc spend from clicks × cpc if auto_spend flag is on
+        if ov.get("auto_spend") and ov.get("clicks") is not None and ov.get("cpc") is not None:
+            merged["spend"] = round(float(ov["clicks"]) * float(ov["cpc"]), 2)
         merged["is_manual"] = bool(ov)
         merged["notes"] = ov.get("notes", "") if ov else ""
+        # Expose niche data
+        for f in ("search_volume", "competitors", "kw_price", "kw_royalties",
+                  "demand_checks", "competition_checks", "keyword_status"):
+            if ov.get(f) is not None:
+                merged[f] = ov[f]
         # Recompute derived metrics
         imp = merged.get("impressions", 0) or 0
         clk = merged.get("clicks", 0) or 0
@@ -348,10 +368,17 @@ async def keyword_detail(dataset_id: str, term: str):
         }
     acos_act = acos_actual_pct(target["spend"], target["sales"])
     acos_next = acos_siguiente_click_pct(target["spend"], target["cpc"], target["sales"], price)
+    acos_next_sin = acos_siguiente_sin_venta_pct(target["spend"], target["cpc"], target["sales"])
     b_now = beneficio_ahora(target["sales"], target["spend"])
     b_next = beneficio_siguiente_click(target["orders"], price, target["spend"], target["cpc"])
     cvr = conversion_pct(target["orders"], target["clicks"])
     badge = determinar_badge(acos_eq, acos_act, acos_next)
+    ms = calculate_market_score(
+        target.get("search_volume"), target.get("competitors"),
+        target.get("kw_price"), target.get("kw_royalties"),
+        target.get("demand_checks", 0) or 0,
+        target.get("competition_checks", 0) or 0,
+    )
     snaps = (doc.get("snapshots") or {}).get(term, [])
     # Count underlying imported rows for this term (for UX)
     underlying = sum(1 for r in rows if (r.get(key) or "") == term)
@@ -364,6 +391,7 @@ async def keyword_detail(dataset_id: str, term: str):
                                            "sales", "orders", "ctr", "roas", "cvr")},
             "acos_actual": acos_act,
             "acos_siguiente": acos_next,
+            "acos_siguiente_sin_venta": acos_next_sin,
             "beneficio_ahora": b_now,
             "beneficio_siguiente": b_next,
             "cvr": cvr,
@@ -374,6 +402,17 @@ async def keyword_detail(dataset_id: str, term: str):
             "notes": target.get("notes", ""),
             "is_manual": target.get("is_manual", False),
             "underlying_rows": underlying,
+            # Niche
+            "search_volume": target.get("search_volume") or 0,
+            "competitors": target.get("competitors") or 0,
+            "kw_price": target.get("kw_price") or 0,
+            "kw_royalties": target.get("kw_royalties") or 0,
+            "demand_checks": target.get("demand_checks", 0) or 0,
+            "competition_checks": target.get("competition_checks", 0) or 0,
+            "keyword_status": target.get("keyword_status") or "pending",
+            "market_score": ms["total"],
+            "market_score_breakdown": ms["breakdown"],
+            "score_label": ms["label"],
         },
         "snapshots": snaps,
         "acos_equilibrio": acos_eq,
@@ -463,10 +502,17 @@ async def get_keywords_unified(dataset_id: str):
         cpc = r.get("cpc") or 0
         acos_act = acos_actual_pct(spend, sales)
         acos_next = acos_siguiente_click_pct(spend, cpc, sales, price)
+        acos_next_sin = acos_siguiente_sin_venta_pct(spend, cpc, sales)
         b_now = beneficio_ahora(sales, spend)
         b_next = beneficio_siguiente_click(orders, price, spend, cpc)
         cvr = conversion_pct(orders, clicks)
         badge = determinar_badge(acos_eq, acos_act, acos_next)
+        ms = calculate_market_score(
+            r.get("search_volume"), r.get("competitors"),
+            r.get("kw_price"), r.get("kw_royalties"),
+            r.get("demand_checks", 0) or 0,
+            r.get("competition_checks", 0) or 0,
+        )
         out_rows.append({
             "term": r.get(key) or "—",
             "campaign": r.get("campaign"),
@@ -481,10 +527,23 @@ async def get_keywords_unified(dataset_id: str):
             "orders": orders,
             "acos_actual": acos_act,
             "acos_siguiente": acos_next,
+            "acos_siguiente_sin_venta": acos_next_sin,
             "beneficio_ahora": b_now,
             "beneficio_siguiente": b_next,
             "cvr": cvr,
             "badge": badge,
+            "match_type": r.get("match_type"),
+            "ad_type": r.get("ad_type"),
+            # Niche study
+            "search_volume": r.get("search_volume"),
+            "competitors": r.get("competitors"),
+            "kw_price": r.get("kw_price"),
+            "kw_royalties": r.get("kw_royalties"),
+            "demand_checks": r.get("demand_checks", 0) or 0,
+            "competition_checks": r.get("competition_checks", 0) or 0,
+            "keyword_status": r.get("keyword_status") or "pending",
+            "market_score": ms["total"],
+            "score_label": ms["label"],
         })
     # Group summary for dashboard blocks
     summary = {"bajo-pe": 0, "recuperable": 0, "en-perdida": 0, "sin-datos": 0}

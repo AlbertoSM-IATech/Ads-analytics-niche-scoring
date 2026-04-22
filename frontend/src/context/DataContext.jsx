@@ -10,8 +10,8 @@ export const DataProvider = ({ children }) => {
   const [theme, setTheme] = useState(
     () => localStorage.getItem("theme") || "dark"
   );
-  const [datasets, setDatasets] = useState([]);
-  const [active, setActive] = useState(null); // full dataset
+  const [datasets, setDatasets] = useState([]);       // ALL datasets (any mp)
+  const [active, setActive] = useState(null);          // full dataset
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -23,20 +23,7 @@ export const DataProvider = ({ children }) => {
     localStorage.setItem("marketplace", marketplace);
   }, [marketplace]);
 
-  const refresh = useCallback(async () => {
-    const r = await listDatasets();
-    setDatasets(r.data || []);
-    const stored = localStorage.getItem("active_dataset");
-    if (stored && r.data.find((d) => d.id === stored)) {
-      await loadActive(stored);
-    } else if (r.data?.[0]) {
-      await loadActive(r.data[0].id);
-    } else {
-      setActive(null);
-    }
-  }, []);
-
-  const loadActive = async (id) => {
+  const loadActive = useCallback(async (id) => {
     setLoading(true);
     try {
       const r = await getDataset(id);
@@ -45,18 +32,38 @@ export const DataProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const refresh = useCallback(async () => {
+    const r = await listDatasets();
+    const all = r.data || [];
+    setDatasets(all);
+    // Filter for the current marketplace
+    const forMp = all.filter((d) => d.marketplace === marketplace);
+    const stored = localStorage.getItem("active_dataset");
+    if (stored && forMp.find((d) => d.id === stored)) {
+      await loadActive(stored);
+    } else if (forMp[0]) {
+      await loadActive(forMp[0].id);
+    } else {
+      setActive(null);
+      localStorage.removeItem("active_dataset");
+    }
+  }, [marketplace, loadActive]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  // Datasets filtered by current marketplace
+  const datasetsForMp = datasets.filter((d) => d.marketplace === marketplace);
 
   return (
     <DataCtx.Provider
       value={{
         marketplace, setMarketplace,
         theme, setTheme,
-        datasets, refresh,
+        datasets,           // all
+        datasetsForMp,      // only current marketplace
+        refresh,
         active, loadActive, setActive,
         loading,
       }}

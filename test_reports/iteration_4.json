@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 4 testing for Publify Amazon Ads. Backend: 12 new pytest cases in /app/backend/tests/test_iter4.py covering Market Score (unit tests for bands/labels and total), acos_siguiente_sin_venta_pct, niche fields persistence via PUT /keyword (search_volume, competitors, kw_price, kw_royalties, demand_checks, competition_checks, keyword_status), keyword-detail market_score_breakdown payload, and auto_spend recalculation (spend = clicks*cpc when flag true, kept as-is when false). All 49 tests pass (37 legacy + 12 new). Frontend: verified nav-niche sidebar + /niche route renders Estudio de nicho with score-medio (17), excelentes (1: 'niche test' score 83), buenas (0), mejor-nicho card; niche-filter, niche-score-slider and niche-term-0..N rows present. Click on niche-term-0 opens KeywordDetailSheet defaulting to tab-nicho with market-score-section, score-badge (83 Excelente), full breakdown (Volume 18/25, Competitors 22/25, Price 15/15, Royalties 4/10, Demand 12/12, CompetitionChecks 12/12), niche-volume/competitors/price/royalties/status fields, 6 demand-* and 3 comp-* checkboxes. Switching to tab-ads shows metric-acos-next-sale and metric-acos-next-nosale; edit-* fields have correct steps (clicks/orders/impressions step=1 min=0; cpc/spend/sales step=0.01 min=0); auto-spend checkbox visible. /keywords kw-term-0 click opens Sheet with tab-ads as default (data-state=active). Both wizards (add-kw-wizard and add-campaign-wizard) display the marketplace badge with flag '🇺🇸 Estados Unidos' in the dialog header.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "market_score.calculate_market_score", "issue": "Volume band uses 'else' fallback 20 pts when value > 50000 (saturated). Edge case: a vol of exactly 0 returns 2 pts via the (100, 2) band instead of a clear zero. Not a bug per se but worth a code comment."},
+      {"endpoint": "market_score.calculate_market_score", "issue": "When competitors is 0, the algorithm grants 10 default pts (treating as 'unknown' rather than 'best'). With test 'all zeros' total ≈ 12 (not ≈10 as in spec). Both interpretations are defensible; flagged for product owner alignment."},
+      {"endpoint": "/api/datasets/{id}/keyword (auto_spend)", "issue": "auto_spend overrides spend silently — clients that pass spend explicitly along with auto_spend=true may be confused that their value was ignored. Consider returning the recomputed spend in the response."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "KeywordDetailSheet (Estudio de KW)", "issues": ["Etiquetas internas del breakdown en inglés ('Volume', 'Competitors', 'Price', 'Royalties', 'Demand', 'Competition Checks') mientras que el resto de la UI está en español. Considerar traducir."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_iter4.py",
+    "/app/test_reports/pytest/pytest_iter4.xml"
+  ],
+  "action_items": [
+    "(optional) Traducir labels del Market Score breakdown al español en KeywordDetailSheet.",
+    "(optional) Devolver el spend recomputado en la respuesta de PUT /keyword cuando auto_spend=true para evitar ambigüedad.",
+    "(optional) Documentar la convención de competitors=0 → 10 pts (treated as desconocido)."
+  ],
+  "critical_code_review_comments": [
+    "server.py _merge_rows_with_overrides: auto_spend recalculation (line 104-105) only fires when BOTH clicks and cpc are present in overrides. If user toggles auto_spend on but only edits clicks (cpc remains aggregated/derived), spend stays manual. Consider falling back to merged['cpc'] when override cpc is None.",
+    "server.py keywords-unified: market_score is computed for every row on every request (O(n) extra cost). Cheap today but should be memoized once we have >1000 keywords.",
+    "market_score.py: total is clamped to 100 but max realistic is 99 (vol 25 + comp 25 + price 15 + roy 10 + demand 12 + comp_checks 12 = 99). The 'excelente' band ≥80 is reachable; OK.",
+    "KeywordOverrideIn: auto_spend is Optional[bool] so omitting it leaves prior value untouched in DB only because overrides dict is replaced per term. After PUT without auto_spend, the key disappears from the override doc — this means auto_spend is NOT persisted across edits. Verify this is desired behaviour or store it explicitly.",
+    "KeywordsUnified.jsx EditableCell: when integer flag wins, we still call parseFloat then Math.round elsewhere — keep client-side rounding consistent with backend (server stores whatever number arrives)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter4.py"
+  ],
+  "success_rate": {"backend": "100% (49/49)", "frontend": "100% of iter4 testids verified (nav-niche, niche-filter, niche-score-slider, niche-term-0, tab-nicho, tab-ads, market-score-section, score-badge, niche-volume/competitors/price/royalties/status, 6 demand-*, 3 comp-*, metric-acos-next-sale, metric-acos-next-nosale, edit-* steps, auto-spend, kw-term-0, marketplace badge in both wizards)"},
+  "test_credentials": "N/A — app has no auth.",
+  "seed_data_creation": "Pytest fixture creates TEST_ITER4 dataset (auto-deleted). Pre-existing 'niche test' keyword in another dataset already had niche-fields persisted — used to validate /niche dashboard score=83.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run all backend tests: REACT_APP_BACKEND_URL=<url> pytest /app/backend/tests/ -v --junitxml=/app/test_reports/pytest/pytest_results.xml (≈33s incl. AI). Iter4 cases live in /app/backend/tests/test_iter4.py (TestMarketScoreUnit, TestAcosSinVentaUnit, TestNicheFieldsPersistence, TestAutoSpend, TestAcosSinVentaInUnified). Frontend testids confirmed: nav-niche, niche-filter, niche-score-slider, niche-term-{i}, tab-nicho, tab-ads, market-score-section, score-badge, niche-volume, niche-competitors, niche-price, niche-royalties, niche-status, demand-*, comp-*, metric-acos-next-sale, metric-acos-next-nosale, edit-clicks/cpc/spend/sales/orders/impressions (with proper step attrs), auto-spend, kw-term-0, add-kw-wizard, add-campaign-wizard (both render marketplace flag badge). 'history-mp-filter' and 'nav-historial' selectors NOT verified due to a Playwright timeout while navigating; main agent please confirm Sidebar testid for Historial nav and that HistoryPanel exposes data-testid='history-mp-filter' with options 'Actual/Todos/<mp>'.",
+  "rca of the issue": "No bugs requiring RCA. The only minor non-bug observations are: (a) Market Score breakdown labels in English vs UI Spanish; (b) auto_spend semantics — if a future PUT omits auto_spend, the prior flag is dropped from the override doc because we serialize via model_dump(exclude_none=True) and replace the per-term sub-doc. Persistence works for the immediate save but consumers should always re-send the flag."
+}
