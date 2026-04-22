@@ -52,3 +52,14 @@
 - **Endpoints nuevos**: `PUT /api/datasets/{id}/book`, `GET /api/datasets/{id}/keywords-unified`. Existentes enriquecidos con `acos_siguiente` y `badge`.
 - **Bug fijado**: `_id` de Mongo se filtraba en respuesta de `/imports/upload` → 500. Corregido.
 - **Tests**: 24/24 backend OK. Frontend verificado.
+
+## Update 2026-04-22 (iter 3)
+- **Tooltips** (`InfoTooltip`) con 17 definiciones (CTR, CPC, ACoS, ACoS+1, PE, Beneficio, ROAS, CVR, badges y fases) en KpiGrid, Keywords Unified, Side Panel y Wizards.
+- **Edición inline** en la tabla Keywords: doble click → input → Enter persiste → recalcula todas las métricas.
+- **Panel lateral por keyword** (`Sheet`): resumen completo, chart de snapshots (Recharts, ACoS vs ACoS+1), botón Snapshot manual, edición rápida y eliminación de override manual. Auto-snapshot una vez al día (localStorage).
+- **Dashboard blocks**: Bajo PE / Recuperable / En pérdida / Sin datos → click navega a `/keywords` con filtro precargado.
+- **Wizards**:
+  - `AddKeywordWizard` (3 pasos): keyword+campaña → métricas → preview con todos los cálculos.
+  - `AddCampaignWizard`: campaña + N keywords en una sola operación con autocálculo de gasto/ventas.
+- **Endpoints nuevos**: `PUT /datasets/{id}/keyword`, `DELETE /datasets/{id}/keyword/{term}`, `POST /datasets/{id}/campaign`, `POST /datasets/{id}/snapshot-all`, `GET /datasets/{id}/snapshots/{term}`, `GET /datasets/{id}/keyword-detail`, y `summary` en keywords-unified.
+- **Testing**: 37/37 backend OK (24 legacy + 13 iter 3). Frontend flows verificados.
