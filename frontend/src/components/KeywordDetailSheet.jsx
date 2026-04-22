@@ -295,12 +295,22 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
                 </div>
                 {breakdown && (
                   <div className="grid grid-cols-3 gap-2 text-xs mt-2">
-                    {Object.entries(breakdown).map(([k, v]) => (
-                      <div key={k} className="border border-border rounded p-2 text-center bg-background">
-                        <div className="capitalize text-muted-foreground">{k.replace("_", " ")}</div>
-                        <div className="num font-semibold">{v.points}/{v.max}</div>
-                      </div>
-                    ))}
+                    {(() => {
+                      const LABELS = {
+                        volume: "Volumen",
+                        competitors: "Competidores",
+                        price: "Precio",
+                        royalties: "Regalías",
+                        demand: "Demanda",
+                        competition_checks: "Competencia",
+                      };
+                      return Object.entries(breakdown).map(([k, v]) => (
+                        <div key={k} className="border border-border rounded p-2 text-center bg-background">
+                          <div className="text-muted-foreground">{LABELS[k] || k}</div>
+                          <div className="num font-semibold">{v.points}/{v.max}</div>
+                        </div>
+                      ));
+                    })()}
                   </div>
                 )}
               </div>

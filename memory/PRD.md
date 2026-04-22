@@ -63,3 +63,13 @@
   - `AddCampaignWizard`: campaña + N keywords en una sola operación con autocálculo de gasto/ventas.
 - **Endpoints nuevos**: `PUT /datasets/{id}/keyword`, `DELETE /datasets/{id}/keyword/{term}`, `POST /datasets/{id}/campaign`, `POST /datasets/{id}/snapshot-all`, `GET /datasets/{id}/snapshots/{term}`, `GET /datasets/{id}/keyword-detail`, y `summary` en keywords-unified.
 - **Testing**: 37/37 backend OK (24 legacy + 13 iter 3). Frontend flows verificados.
+
+## Update 2026-04-22 (iter 4)
+- **Side panel con 2 pestañas** (Estudio de KW / Gestión de Ads) como el archivo original.
+- **Inline edit**: clicks/impresiones/pedidos con step=1 (enteros), CPC/gasto/ventas con step=0.01.
+- **Auto-calc gasto** (clicks × CPC) con toggle en el side panel + al editar clicks/CPC en la tabla.
+- **Auto-calc ventas** (pedidos × precio del libro) con toggle.
+- **ACoS del siguiente click** ahora con 2 variantes: `con venta` (optimista) y `sin venta` (peor caso) — fórmulas revisadas y correctas.
+- **Marketplaces independientes**: datasets filtrados por marketplace activo, badge del marketplace en wizards y side panel, filtro en historial.
+- **Niche Study (Market Score 0-100)**: nueva ruta `/niche` con stats cards + tabla ordenada por score + breakdown (Volumen 25, Competidores 25, Precio 15, Regalías 10, Demanda 12, Competencia 12). Editable por keyword desde el tab Estudio de KW del side panel con 6 checkboxes de demanda y 3 de competencia.
+- **Testing**: 49/49 backend OK (12 nuevos: Market Score unit, acos sin venta, niche fields persistence, auto_spend).
