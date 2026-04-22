@@ -7,8 +7,11 @@ import HistoryPanel from "../components/HistoryPanel";
 import CampaignsTable from "../components/CampaignsTable";
 import BookInfoPanel from "../components/BookInfoPanel";
 import KeywordsUnified from "../components/KeywordsUnified";
+import DashboardBlocks from "../components/DashboardBlocks";
 import { useData } from "../context/DataContext";
 import { Routes, Route, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { getKeywordsUnified } from "../lib/api";
 
 function Empty({ msg }) {
   return (
@@ -20,12 +23,22 @@ function Empty({ msg }) {
 
 function DashboardView() {
   const { active } = useData();
+  const [summary, setSummary] = useState(null);
+
+  useEffect(() => {
+    if (!active?.id) { setSummary(null); return; }
+    getKeywordsUnified(active.id).then((r) => setSummary(r.data.summary || null));
+  }, [active?.id, active?.book_economy?.precio_libro, active?.book_economy?.regalias_por_venta]);
+
   const pe = active?.book_economy?.precio_libro && active?.book_economy?.regalias_por_venta
     ? (active.book_economy.regalias_por_venta / active.book_economy.precio_libro) * 100
     : null;
   return (
     <div className="space-y-6 animate-fade-in" data-testid="view-dashboard">
       <KpiGrid kpis={active?.kpis} acosEquilibrio={pe} />
+      {active && (
+        <DashboardBlocks summary={summary} />
+      )}
       {active ? (
         <>
           <ChartsPanel datasetId={active.id} />

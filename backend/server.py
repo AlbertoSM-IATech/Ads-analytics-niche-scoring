@@ -10,7 +10,7 @@ from typing import Any, Optional
 import uuid
 from datetime import datetime, timezone
 
-from amazon_ads import parse_ads_file, aggregate_by
+from amazon_ads import parse_ads_file, aggregate_by, compute_kpis
 from acos_calc import (
     acos_equilibrio_pct, acos_actual_pct, acos_siguiente_click_pct,
     beneficio_ahora, beneficio_siguiente_click, conversion_pct,
@@ -28,6 +28,7 @@ app = FastAPI(title="Publify Amazon Ads Analytics")
 api = APIRouter(prefix="/api")
 
 
+# ------------------- Models -------------------
 class BookInfo(BaseModel):
     title: str = ""
     subtitle: str = ""
@@ -45,6 +46,68 @@ class BookSettingsIn(BaseModel):
     economy: BookEconomy
 
 
+class KeywordOverrideIn(BaseModel):
+    term: str
+    campaign: Optional[str] = None
+    impressions: Optional[float] = None
+    clicks: Optional[float] = None
+    cpc: Optional[float] = None
+    spend: Optional[float] = None
+    orders: Optional[float] = None
+    sales: Optional[float] = None
+    notes: Optional[str] = None
+    match_type: Optional[str] = None
+    ad_type: Optional[str] = None
+
+
+class CampaignCreateIn(BaseModel):
+    campaign: str
+    ad_type: str = "SP"
+    match_type: Optional[str] = None
+    keywords: list[KeywordOverrideIn] = []
+
+
+# ------------------- Helpers -------------------
+def _merge_rows_with_overrides(rows: list[dict], overrides: dict[str, dict], key: str) -> list[dict]:
+    """Aggregate rows by `key`, then apply any per-term overrides."""
+    agg = aggregate_by(rows, key)
+    agg_map = {r[key]: r for r in agg}
+    # Include manual-only terms
+    for term, ov in overrides.items():
+        if term not in agg_map:
+            base = {key: term, "impressions": 0.0, "clicks": 0.0, "spend": 0.0,
+                    "sales": 0.0, "orders": 0.0, "ctr": 0.0, "cpc": 0.0,
+                    "acos": 0.0, "roas": 0.0, "cvr": 0.0}
+            agg_map[term] = base
+    # Apply overrides (replace only provided fields)
+    out = []
+    for term, row in agg_map.items():
+        ov = overrides.get(term, {}) or {}
+        merged = dict(row)
+        for f in ("impressions", "clicks", "cpc", "spend", "sales", "orders",
+                  "campaign", "notes", "match_type", "ad_type"):
+            if ov.get(f) is not None:
+                merged[f] = ov[f]
+        merged["is_manual"] = bool(ov)
+        merged["notes"] = ov.get("notes", "") if ov else ""
+        # Recompute derived metrics
+        imp = merged.get("impressions", 0) or 0
+        clk = merged.get("clicks", 0) or 0
+        spend = merged.get("spend", 0) or 0
+        sales = merged.get("sales", 0) or 0
+        orders = merged.get("orders", 0) or 0
+        merged["ctr"] = round((clk / imp * 100) if imp else 0, 2)
+        if ov.get("cpc") is None:
+            merged["cpc"] = round((spend / clk) if clk else 0, 2)
+        merged["acos"] = round((spend / sales * 100) if sales else 0, 2)
+        merged["roas"] = round((sales / spend) if spend else 0, 2)
+        merged["cvr"] = round((orders / clk * 100) if clk else 0, 2)
+        out.append(merged)
+    out.sort(key=lambda x: x.get("spend", 0), reverse=True)
+    return out
+
+
+# ------------------- Routes -------------------
 @api.get("/")
 async def root():
     return {"status": "ok", "service": "publify-ads"}
@@ -83,10 +146,11 @@ async def upload_csv(
         "rows": parsed["rows"],
         "book_info": {"title": "", "subtitle": "", "description": "", "categories": []},
         "book_economy": {"precio_libro": 0.0, "regalias_por_venta": 0.0},
+        "overrides": {},
+        "snapshots": {},
     }
     await db.datasets.insert_one(doc)
-    out = {k: v for k, v in doc.items() if k not in ("rows", "_id")}
-    return out
+    return {k: v for k, v in doc.items() if k not in ("rows", "_id")}
 
 
 @api.get("/datasets")
@@ -96,7 +160,8 @@ async def list_datasets(marketplace: Optional[str] = None):
         query["marketplace"] = marketplace
     items = await db.datasets.find(
         query,
-        {"_id": 0, "rows": 0, "headers_detected": 0, "header_mapping": 0},
+        {"_id": 0, "rows": 0, "headers_detected": 0, "header_mapping": 0,
+         "overrides": 0, "snapshots": 0},
     ).sort("created_at", -1).to_list(500)
     return items
 
@@ -129,31 +194,237 @@ async def update_book(dataset_id: str, payload: BookSettingsIn):
     return {"ok": True}
 
 
-@api.get("/datasets/{dataset_id}/campaigns")
-async def get_campaigns(dataset_id: str):
-    doc = await db.datasets.find_one({"id": dataset_id}, {"_id": 0, "rows": 1, "book_economy": 1})
+# ---- Keyword overrides (inline edit + manual add) ----
+@api.put("/datasets/{dataset_id}/keyword")
+async def upsert_keyword(dataset_id: str, payload: KeywordOverrideIn):
+    if not payload.term.strip():
+        raise HTTPException(status_code=400, detail="El término no puede estar vacío")
+    term = payload.term.strip()
+    data = payload.model_dump(exclude_none=True)
+    data.pop("term", None)
+    r = await db.datasets.update_one(
+        {"id": dataset_id},
+        {"$set": {f"overrides.{term}": data}},
+    )
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    # Recalc KPIs on top-level
+    await _recalc_dataset_kpis(dataset_id)
+    return {"ok": True, "term": term}
+
+
+@api.delete("/datasets/{dataset_id}/keyword/{term}")
+async def delete_keyword(dataset_id: str, term: str):
+    r = await db.datasets.update_one(
+        {"id": dataset_id},
+        {"$unset": {f"overrides.{term}": ""}},
+    )
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    await _recalc_dataset_kpis(dataset_id)
+    return {"ok": True, "term": term}
+
+
+@api.post("/datasets/{dataset_id}/campaign")
+async def create_campaign(dataset_id: str, payload: CampaignCreateIn):
+    if not payload.campaign.strip():
+        raise HTTPException(status_code=400, detail="El nombre de campaña es obligatorio")
+    doc = await db.datasets.find_one({"id": dataset_id}, {"_id": 0, "overrides": 1})
     if not doc:
         raise HTTPException(status_code=404, detail="Dataset no encontrado")
-    agg = aggregate_by(doc["rows"], "campaign")
-    eco = doc.get("book_economy", {})
+    overrides = doc.get("overrides", {}) or {}
+    added = []
+    for kw in payload.keywords:
+        term = kw.term.strip()
+        if not term:
+            continue
+        data = kw.model_dump(exclude_none=True)
+        data.pop("term", None)
+        data["campaign"] = payload.campaign.strip()
+        if payload.ad_type:
+            data["ad_type"] = payload.ad_type
+        if payload.match_type and not data.get("match_type"):
+            data["match_type"] = payload.match_type
+        overrides[term] = data
+        added.append(term)
+    await db.datasets.update_one(
+        {"id": dataset_id}, {"$set": {"overrides": overrides}}
+    )
+    await _recalc_dataset_kpis(dataset_id)
+    return {"ok": True, "campaign": payload.campaign, "added": added}
+
+
+async def _recalc_dataset_kpis(dataset_id: str):
+    """Recompute top-level KPIs from rows + overrides so dashboard stays in sync."""
+    doc = await db.datasets.find_one(
+        {"id": dataset_id}, {"_id": 0, "rows": 1, "overrides": 1}
+    )
+    if not doc:
+        return
+    rows = doc.get("rows", []) or []
+    overrides = doc.get("overrides", {}) or {}
+    # Aggregate everything as keyword-level using customer_search_term or targeting
+    key = "customer_search_term" if any(r.get("customer_search_term") for r in rows) else "targeting"
+    merged = _merge_rows_with_overrides(rows, overrides, key)
+    k = compute_kpis(merged)
+    await db.datasets.update_one({"id": dataset_id}, {"$set": {"kpis": k}})
+
+
+# ---- Snapshots ----
+@api.post("/datasets/{dataset_id}/snapshot-all")
+async def snapshot_all(dataset_id: str):
+    """Append a time-stamped snapshot for every keyword term."""
+    doc = await db.datasets.find_one(
+        {"id": dataset_id},
+        {"_id": 0, "rows": 1, "overrides": 1, "snapshots": 1, "book_economy": 1}
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    rows = doc.get("rows", []) or []
+    overrides = doc.get("overrides", {}) or {}
+    eco = doc.get("book_economy", {}) or {}
+    price = eco.get("precio_libro") or None
+    key = "customer_search_term" if any(r.get("customer_search_term") for r in rows) else "targeting"
+    merged = _merge_rows_with_overrides(rows, overrides, key)
+    ts = datetime.now(timezone.utc).isoformat()
+    snaps = doc.get("snapshots", {}) or {}
+    for r in merged:
+        term = r.get(key) or "—"
+        entry = {
+            "ts": ts,
+            "clicks": r["clicks"],
+            "impressions": r["impressions"],
+            "spend": r["spend"],
+            "sales": r["sales"],
+            "orders": r["orders"],
+            "cpc": r["cpc"],
+            "acos_actual": acos_actual_pct(r["spend"], r["sales"]),
+            "acos_siguiente": acos_siguiente_click_pct(r["spend"], r["cpc"], r["sales"], price),
+        }
+        bucket = snaps.setdefault(term, [])
+        # replace today's entry if it exists
+        today = ts[:10]
+        bucket = [s for s in bucket if not str(s.get("ts", "")).startswith(today)]
+        bucket.append(entry)
+        bucket = sorted(bucket, key=lambda s: s.get("ts", ""))
+        snaps[term] = bucket[-60:]  # cap at 60 days
+    await db.datasets.update_one({"id": dataset_id}, {"$set": {"snapshots": snaps}})
+    return {"ok": True, "terms": len(merged), "ts": ts}
+
+
+@api.get("/datasets/{dataset_id}/snapshots/{term}")
+async def get_snapshots(dataset_id: str, term: str):
+    doc = await db.datasets.find_one(
+        {"id": dataset_id}, {"_id": 0, "snapshots": 1}
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    return {"term": term, "snapshots": (doc.get("snapshots") or {}).get(term, [])}
+
+
+@api.get("/datasets/{dataset_id}/keyword-detail")
+async def keyword_detail(dataset_id: str, term: str):
+    doc = await db.datasets.find_one(
+        {"id": dataset_id},
+        {"_id": 0, "rows": 1, "overrides": 1, "snapshots": 1, "book_economy": 1}
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    rows = doc.get("rows", []) or []
+    overrides = doc.get("overrides", {}) or {}
+    eco = doc.get("book_economy", {}) or {}
+    price = eco.get("precio_libro") or None
+    roy = eco.get("regalias_por_venta")
+    acos_eq = acos_equilibrio_pct(price, roy)
+    key = "customer_search_term" if any(r.get("customer_search_term") for r in rows) else "targeting"
+    merged = _merge_rows_with_overrides(rows, overrides, key)
+    target = next((r for r in merged if (r.get(key) or "") == term), None)
+    if not target:
+        target = {
+            key: term, "impressions": 0, "clicks": 0, "cpc": 0, "spend": 0,
+            "sales": 0, "orders": 0, "ctr": 0, "roas": 0, "cvr": 0, "acos": 0,
+            "is_manual": term in overrides, "notes": overrides.get(term, {}).get("notes", ""),
+            "campaign": overrides.get(term, {}).get("campaign"),
+        }
+    acos_act = acos_actual_pct(target["spend"], target["sales"])
+    acos_next = acos_siguiente_click_pct(target["spend"], target["cpc"], target["sales"], price)
+    b_now = beneficio_ahora(target["sales"], target["spend"])
+    b_next = beneficio_siguiente_click(target["orders"], price, target["spend"], target["cpc"])
+    cvr = conversion_pct(target["orders"], target["clicks"])
+    badge = determinar_badge(acos_eq, acos_act, acos_next)
+    snaps = (doc.get("snapshots") or {}).get(term, [])
+    # Count underlying imported rows for this term (for UX)
+    underlying = sum(1 for r in rows if (r.get(key) or "") == term)
+    override = overrides.get(term)
+    return {
+        "term": term,
+        "key": key,
+        "metrics": {
+            **{k: target.get(k) for k in ("impressions", "clicks", "cpc", "spend",
+                                           "sales", "orders", "ctr", "roas", "cvr")},
+            "acos_actual": acos_act,
+            "acos_siguiente": acos_next,
+            "beneficio_ahora": b_now,
+            "beneficio_siguiente": b_next,
+            "cvr": cvr,
+            "badge": badge,
+            "campaign": target.get("campaign"),
+            "match_type": target.get("match_type"),
+            "ad_type": target.get("ad_type"),
+            "notes": target.get("notes", ""),
+            "is_manual": target.get("is_manual", False),
+            "underlying_rows": underlying,
+        },
+        "snapshots": snaps,
+        "acos_equilibrio": acos_eq,
+        "override": override,
+    }
+
+
+@api.get("/datasets/{dataset_id}/campaigns")
+async def get_campaigns(dataset_id: str):
+    doc = await db.datasets.find_one(
+        {"id": dataset_id}, {"_id": 0, "rows": 1, "book_economy": 1, "overrides": 1}
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    rows = doc.get("rows", []) or []
+    overrides = doc.get("overrides", {}) or {}
+    # For campaigns, we aggregate by campaign, considering overrides as virtual rows
+    virtual_rows = list(rows)
+    for term, ov in overrides.items():
+        if ov.get("campaign"):
+            virtual_rows.append({
+                "campaign": ov["campaign"],
+                "impressions": ov.get("impressions", 0) or 0,
+                "clicks": ov.get("clicks", 0) or 0,
+                "spend": ov.get("spend", 0) or 0,
+                "sales": ov.get("sales", 0) or 0,
+                "orders": ov.get("orders", 0) or 0,
+            })
+    agg = aggregate_by(virtual_rows, "campaign")
+    eco = doc.get("book_economy", {}) or {}
     price = eco.get("precio_libro") or None
     roy = eco.get("regalias_por_venta")
     acos_eq = acos_equilibrio_pct(price, roy)
     for r in agg:
         r["acos_siguiente"] = acos_siguiente_click_pct(r["spend"], r["cpc"], r["sales"], price)
-        r["badge"] = determinar_badge(acos_eq, r["acos"] if r["acos"] else None, r["acos_siguiente"])
+        r["badge"] = determinar_badge(acos_eq, r.get("acos") or None, r.get("acos_siguiente"))
     return agg
 
 
 @api.get("/datasets/{dataset_id}/search-terms")
 async def get_search_terms(dataset_id: str, min_clicks: int = 0):
-    doc = await db.datasets.find_one({"id": dataset_id}, {"_id": 0, "rows": 1, "book_economy": 1})
+    doc = await db.datasets.find_one(
+        {"id": dataset_id}, {"_id": 0, "rows": 1, "book_economy": 1, "overrides": 1}
+    )
     if not doc:
         raise HTTPException(status_code=404, detail="Dataset no encontrado")
-    rows = doc["rows"]
+    rows = doc.get("rows", []) or []
+    overrides = doc.get("overrides", {}) or {}
     key = "customer_search_term" if any(r.get("customer_search_term") for r in rows) else "targeting"
-    agg = aggregate_by(rows, key)
-    eco = doc.get("book_economy", {})
+    agg = _merge_rows_with_overrides(rows, overrides, key)
+    eco = doc.get("book_economy", {}) or {}
     price = eco.get("precio_libro") or None
     roy = eco.get("regalias_por_venta")
     acos_eq = acos_equilibrio_pct(price, roy)
@@ -162,27 +433,27 @@ async def get_search_terms(dataset_id: str, min_clicks: int = 0):
             r.get("clicks", 0) >= max(min_clicks, 6) and r.get("orders", 0) == 0
         )
         r["acos_siguiente"] = acos_siguiente_click_pct(r["spend"], r["cpc"], r["sales"], price)
-        r["badge"] = determinar_badge(acos_eq, r["acos"] if r["acos"] else None, r["acos_siguiente"])
+        r["badge"] = determinar_badge(acos_eq, r.get("acos") or None, r.get("acos_siguiente"))
     return {"key": key, "rows": agg, "acos_equilibrio": acos_eq}
 
 
 @api.get("/datasets/{dataset_id}/keywords-unified")
 async def get_keywords_unified(dataset_id: str):
-    """Unified keyword view: aggregates per term/targeting and applies
-    BookEconomy calculations (acos_equilibrio, acos_siguiente, beneficio, badge)."""
-    doc = await db.datasets.find_one({"id": dataset_id}, {"_id": 0, "rows": 1, "book_economy": 1})
+    doc = await db.datasets.find_one(
+        {"id": dataset_id},
+        {"_id": 0, "rows": 1, "overrides": 1, "book_economy": 1}
+    )
     if not doc:
         raise HTTPException(status_code=404, detail="Dataset no encontrado")
-    rows = doc["rows"]
+    rows = doc.get("rows", []) or []
+    overrides = doc.get("overrides", {}) or {}
     key = "customer_search_term" if any(r.get("customer_search_term") for r in rows) else "targeting"
-    agg = aggregate_by(rows, key)
-
+    agg = _merge_rows_with_overrides(rows, overrides, key)
     eco = doc.get("book_economy", {}) or {}
     price = eco.get("precio_libro") or None
     roy = eco.get("regalias_por_venta")
     acos_eq = acos_equilibrio_pct(price, roy)
     fases = guias_fase(acos_eq)
-
     out_rows = []
     for r in agg:
         spend = r.get("spend") or 0
@@ -190,17 +461,17 @@ async def get_keywords_unified(dataset_id: str):
         orders = r.get("orders") or 0
         clicks = r.get("clicks") or 0
         cpc = r.get("cpc") or 0
-
         acos_act = acos_actual_pct(spend, sales)
         acos_next = acos_siguiente_click_pct(spend, cpc, sales, price)
-        b_ahora = beneficio_ahora(sales, spend)
+        b_now = beneficio_ahora(sales, spend)
         b_next = beneficio_siguiente_click(orders, price, spend, cpc)
         cvr = conversion_pct(orders, clicks)
         badge = determinar_badge(acos_eq, acos_act, acos_next)
-
         out_rows.append({
             "term": r.get(key) or "—",
-            "campaign": None,
+            "campaign": r.get("campaign"),
+            "is_manual": r.get("is_manual", False),
+            "notes": r.get("notes", ""),
             "impressions": r.get("impressions", 0),
             "clicks": clicks,
             "ctr": r.get("ctr", 0),
@@ -210,17 +481,22 @@ async def get_keywords_unified(dataset_id: str):
             "orders": orders,
             "acos_actual": acos_act,
             "acos_siguiente": acos_next,
-            "beneficio_ahora": b_ahora,
+            "beneficio_ahora": b_now,
             "beneficio_siguiente": b_next,
             "cvr": cvr,
             "badge": badge,
         })
+    # Group summary for dashboard blocks
+    summary = {"bajo-pe": 0, "recuperable": 0, "en-perdida": 0, "sin-datos": 0}
+    for r in out_rows:
+        summary[r["badge"]] = summary.get(r["badge"], 0) + 1
     return {
         "key": key,
         "rows": out_rows,
         "acos_equilibrio": acos_eq,
         "guias_fase": fases,
         "book_economy": eco,
+        "summary": summary,
     }
 
 
@@ -229,7 +505,7 @@ async def get_timeseries(dataset_id: str):
     doc = await db.datasets.find_one({"id": dataset_id}, {"_id": 0, "rows": 1})
     if not doc:
         raise HTTPException(status_code=404, detail="Dataset no encontrado")
-    rows = doc["rows"]
+    rows = doc.get("rows", []) or []
     has_date = any(r.get("start_date") for r in rows)
     if has_date:
         buckets: dict[str, dict] = {}
@@ -269,10 +545,11 @@ async def ai_recommendations(dataset_id: str):
         raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY no configurado")
 
     kpis = doc["kpis"]
-    rows = doc["rows"]
+    rows = doc.get("rows", []) or []
+    overrides = doc.get("overrides", {}) or {}
     campaigns = aggregate_by(rows, "campaign")[:10]
     key = "customer_search_term" if any(r.get("customer_search_term") for r in rows) else "targeting"
-    terms = aggregate_by(rows, key)[:15]
+    terms = _merge_rows_with_overrides(rows, overrides, key)[:15]
     eco = doc.get("book_economy", {})
     acos_eq = acos_equilibrio_pct(eco.get("precio_libro"), eco.get("regalias_por_venta"))
 
@@ -321,7 +598,6 @@ async def ai_recommendations(dataset_id: str):
 
 
 app.include_router(api)
-
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

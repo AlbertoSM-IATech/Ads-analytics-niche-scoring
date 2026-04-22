@@ -1,13 +1,15 @@
 import { fmtInt, fmtPct, fmtMoney, getMarketplace } from "../lib/format";
 import { useData } from "../context/DataContext";
+import { InfoTooltip } from "./InfoTooltip";
 
-const Tile = ({ label, value, accent, sub, testid }) => (
+const Tile = ({ label, value, accent, sub, testid, tooltip }) => (
   <div
     className="border border-border p-5 rounded-lg bg-card coral-card-hover animate-fade-in"
     data-testid={testid}
   >
-    <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+    <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-1.5">
       {label}
+      {tooltip && <InfoTooltip content={tooltip} />}
     </div>
     <div className={`num text-3xl font-semibold mt-2 tracking-tight ${accent || ""}`}>
       {value}
@@ -35,25 +37,27 @@ export default function KpiGrid({ kpis, acosEquilibrio }) {
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" data-testid="kpi-grid">
       <Tile label="Impresiones" value={fmtInt(kpis.impressions)} testid="kpi-impressions" />
       <Tile label="Clicks" value={fmtInt(kpis.clicks)} testid="kpi-clicks" />
-      <Tile label="CTR" value={fmtPct(kpis.ctr)} testid="kpi-ctr" />
+      <Tile label="CTR" value={fmtPct(kpis.ctr)} testid="kpi-ctr" tooltip="ctr" />
       <Tile label="Gasto" value={fmtMoney(kpis.spend, sym)} testid="kpi-spend" />
       <Tile label="Ventas" value={fmtMoney(kpis.sales, sym)} testid="kpi-sales" />
       <Tile label="Pedidos" value={fmtInt(kpis.orders)} testid="kpi-orders" />
-      <Tile label="CPC" value={fmtMoney(kpis.cpc, sym)} testid="kpi-cpc" />
+      <Tile label="CPC" value={fmtMoney(kpis.cpc, sym)} testid="kpi-cpc" tooltip="cpc" />
       <Tile
         label="ACoS"
         value={fmtPct(kpis.acos)}
         accent={acosAccent}
         sub={pe ? `PE: ${fmtPct(pe)}` : undefined}
         testid="kpi-acos"
+        tooltip="acos"
       />
       <Tile
         label="ROAS"
         value={(kpis.roas ?? 0).toFixed(2)}
         accent={kpis.roas >= 3 ? "text-green-600 dark:text-green-400" : kpis.roas >= 1.5 ? "text-amber-500" : "text-destructive"}
         testid="kpi-roas"
+        tooltip="roas"
       />
-      <Tile label="CVR" value={fmtPct(kpis.cvr)} testid="kpi-cvr" />
+      <Tile label="CVR" value={fmtPct(kpis.cvr)} testid="kpi-cvr" tooltip="cvr" />
     </div>
   );
 }

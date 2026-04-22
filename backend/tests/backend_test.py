@@ -476,3 +476,199 @@ class TestDelete:
         # subsequent get → 404
         g = session.get(f"{API}/datasets/{ds_id}", timeout=30)
         assert g.status_code == 404
+
+
+
+# ======================= Iteration 3 =======================
+# Overrides (upsert/delete keyword), campaign creation, snapshots, keyword-detail,
+# and keywords-unified 'summary' block.
+class TestIter3Overrides:
+    def test_upsert_keyword_updates_unified(self, session, en_dataset):
+        ds = en_dataset["id"]
+        # Set book so badges compute
+        session.put(f"{API}/datasets/{ds}/book",
+                    json={"info": BOOK_INFO, "economy": BOOK_ECONOMY}, timeout=30)
+        payload = {
+            "term": "mindfulness book",
+            "clicks": 100, "cpc": 0.5, "spend": 50.0,
+            "orders": 10, "sales": 200.0, "impressions": 5000,
+            "match_type": "exact", "ad_type": "SP", "notes": "manual edit"
+        }
+        r = session.put(f"{API}/datasets/{ds}/keyword", json=payload, timeout=30)
+        assert r.status_code == 200, r.text
+        assert r.json()["ok"] is True
+
+        u = session.get(f"{API}/datasets/{ds}/keywords-unified", timeout=30)
+        assert u.status_code == 200
+        rows = u.json()["rows"]
+        row = next(r for r in rows if r["term"] == "mindfulness book")
+        assert row["is_manual"] is True
+        assert row["clicks"] == 100
+        assert row["spend"] == 50.0
+        assert row["sales"] == 200.0
+        assert row["orders"] == 10
+        # CTR recomputed: 100/5000*100 = 2.0
+        assert abs(row["ctr"] - 2.0) < 0.01
+        # acos_actual = 50/200*100 = 25
+        assert abs(row["acos_actual"] - 25.0) < 0.01
+        # cvr = 10/100*100 = 10
+        assert abs(row["cvr"] - 10.0) < 0.01
+
+        # dataset top-level kpis should be recomputed
+        d = session.get(f"{API}/datasets/{ds}", timeout=30).json()
+        assert "kpis" in d
+        assert d["kpis"]["spend"] > 0
+
+    def test_upsert_empty_term_400(self, session, en_dataset):
+        r = session.put(f"{API}/datasets/{en_dataset['id']}/keyword",
+                        json={"term": "   "}, timeout=30)
+        assert r.status_code == 400
+
+    def test_upsert_unknown_dataset_404(self, session):
+        r = session.put(f"{API}/datasets/nope/keyword",
+                        json={"term": "x", "clicks": 1}, timeout=30)
+        assert r.status_code == 404
+
+    def test_delete_keyword_restores_aggregated(self, session, en_dataset):
+        ds = en_dataset["id"]
+        session.put(f"{API}/datasets/{ds}/book",
+                    json={"info": BOOK_INFO, "economy": BOOK_ECONOMY}, timeout=30)
+        # ensure override exists (from prior test or create it)
+        session.put(f"{API}/datasets/{ds}/keyword",
+                    json={"term": "mindfulness book", "clicks": 999, "spend": 999.0,
+                          "sales": 0.0, "orders": 0, "impressions": 100},
+                    timeout=30)
+        d = session.delete(f"{API}/datasets/{ds}/keyword/mindfulness book", timeout=30)
+        assert d.status_code == 200
+        assert d.json()["ok"] is True
+        u = session.get(f"{API}/datasets/{ds}/keywords-unified", timeout=30).json()
+        row = next(r for r in u["rows"] if r["term"] == "mindfulness book")
+        assert row["is_manual"] is False
+        # Back to original aggregated values
+        assert round(row["spend"], 2) == 27.90
+        assert round(row["sales"], 2) == 89.97
+
+
+class TestIter3Campaign:
+    def test_create_campaign_with_keywords(self, session, en_dataset):
+        ds = en_dataset["id"]
+        session.put(f"{API}/datasets/{ds}/book",
+                    json={"info": BOOK_INFO, "economy": BOOK_ECONOMY}, timeout=30)
+        payload = {
+            "campaign": "TEST_NewCampaign",
+            "ad_type": "SP",
+            "match_type": "exact",
+            "keywords": [
+                {"term": "TEST_new_kw_1", "clicks": 50, "cpc": 0.30, "orders": 2,
+                 "impressions": 1500, "spend": 15.0, "sales": 40.0},
+                {"term": "TEST_new_kw_2", "clicks": 10, "cpc": 0.20, "orders": 0,
+                 "impressions": 500, "spend": 2.0, "sales": 0.0},
+            ]
+        }
+        r = session.post(f"{API}/datasets/{ds}/campaign", json=payload, timeout=30)
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["ok"] is True
+        assert body["campaign"] == "TEST_NewCampaign"
+        assert set(body["added"]) == {"TEST_new_kw_1", "TEST_new_kw_2"}
+
+        u = session.get(f"{API}/datasets/{ds}/keywords-unified", timeout=30).json()
+        terms = {r["term"]: r for r in u["rows"]}
+        for t in ("TEST_new_kw_1", "TEST_new_kw_2"):
+            assert t in terms
+            assert terms[t]["is_manual"] is True
+            assert terms[t]["campaign"] == "TEST_NewCampaign"
+
+        # cleanup overrides
+        for t in ("TEST_new_kw_1", "TEST_new_kw_2"):
+            session.delete(f"{API}/datasets/{ds}/keyword/{t}", timeout=30)
+
+    def test_create_campaign_empty_name_400(self, session, en_dataset):
+        r = session.post(f"{API}/datasets/{en_dataset['id']}/campaign",
+                         json={"campaign": "   ", "keywords": []}, timeout=30)
+        assert r.status_code == 400
+
+
+class TestIter3Snapshots:
+    def test_snapshot_all_and_dedupe_same_day(self, session, en_dataset):
+        ds = en_dataset["id"]
+        session.put(f"{API}/datasets/{ds}/book",
+                    json={"info": BOOK_INFO, "economy": BOOK_ECONOMY}, timeout=30)
+        r1 = session.post(f"{API}/datasets/{ds}/snapshot-all", timeout=30)
+        assert r1.status_code == 200
+        terms_count = r1.json()["terms"]
+        assert terms_count >= 1
+
+        # grab snapshots for a known term
+        s1 = session.get(f"{API}/datasets/{ds}/snapshots/mindfulness book",
+                         timeout=30).json()
+        assert s1["term"] == "mindfulness book"
+        assert len(s1["snapshots"]) == 1
+
+        # second call same day should not duplicate
+        r2 = session.post(f"{API}/datasets/{ds}/snapshot-all", timeout=30)
+        assert r2.status_code == 200
+        s2 = session.get(f"{API}/datasets/{ds}/snapshots/mindfulness book",
+                         timeout=30).json()
+        assert len(s2["snapshots"]) == 1, "same-day snapshot should replace, not append"
+
+    def test_get_snapshots_unknown_term_returns_empty(self, session, en_dataset):
+        r = session.get(f"{API}/datasets/{en_dataset['id']}/snapshots/totally_unknown",
+                        timeout=30)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["term"] == "totally_unknown"
+        assert body["snapshots"] == []
+
+    def test_snapshot_all_404(self, session):
+        r = session.post(f"{API}/datasets/does-not-exist/snapshot-all", timeout=30)
+        assert r.status_code == 404
+
+
+class TestIter3KeywordDetail:
+    def test_keyword_detail_full_payload(self, session, en_dataset):
+        ds = en_dataset["id"]
+        session.put(f"{API}/datasets/{ds}/book",
+                    json={"info": BOOK_INFO, "economy": BOOK_ECONOMY}, timeout=30)
+        r = session.get(f"{API}/datasets/{ds}/keyword-detail",
+                        params={"term": "mindfulness book"}, timeout=30)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["term"] == "mindfulness book"
+        assert body["key"] in ("customer_search_term", "targeting")
+        m = body["metrics"]
+        for f in ("acos_actual", "acos_siguiente", "beneficio_ahora",
+                  "beneficio_siguiente", "cvr", "badge", "underlying_rows",
+                  "is_manual"):
+            assert f in m, f"missing {f} in metrics"
+        assert m["underlying_rows"] >= 1
+        assert body["acos_equilibrio"] is not None
+        assert "snapshots" in body
+        assert "override" in body
+
+    def test_keyword_detail_unknown_term_is_manual_false(self, session, en_dataset):
+        ds = en_dataset["id"]
+        r = session.get(f"{API}/datasets/{ds}/keyword-detail",
+                        params={"term": "this_does_not_exist"}, timeout=30)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["metrics"]["underlying_rows"] == 0
+
+    def test_keyword_detail_404(self, session):
+        r = session.get(f"{API}/datasets/nope/keyword-detail",
+                        params={"term": "x"}, timeout=30)
+        assert r.status_code == 404
+
+
+class TestIter3UnifiedSummary:
+    def test_keywords_unified_has_summary_block(self, session, en_dataset):
+        ds = en_dataset["id"]
+        session.put(f"{API}/datasets/{ds}/book",
+                    json={"info": BOOK_INFO, "economy": BOOK_ECONOMY}, timeout=30)
+        u = session.get(f"{API}/datasets/{ds}/keywords-unified", timeout=30).json()
+        assert "summary" in u
+        for k in ("bajo-pe", "recuperable", "en-perdida", "sin-datos"):
+            assert k in u["summary"]
+            assert isinstance(u["summary"][k], int)
+        total = sum(u["summary"].values())
+        assert total == len(u["rows"])

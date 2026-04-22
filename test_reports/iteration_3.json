@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 3 testing for Publify Amazon Ads. Backend: added 13 new pytest cases covering PUT/DELETE /keyword overrides, POST /campaign bulk creation, snapshot-all (+ same-day dedupe), GET /snapshots/{term}, GET /keyword-detail, and keywords-unified 'summary' block. All 37 tests pass (24 legacy + 13 new). Frontend: verified dashboard-blocks (4 PE cards link to /keywords with filter), both wizards (add-kw-wizard 3 steps + add-camp-wizard), keyword detail sheet (snapshot-btn, save-kw-btn, no-snapshots when <2 snapshots), inline edit (edit-clicks-0 double click → input → Enter persists, row marked is_manual with toast 'clicks actualizado'), and tooltips (9 on Dashboard KPI grid, 7 on /keywords headers, 8 inside Sheet). No critical bugs found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/datasets/{id}/keyword/{term}", "issue": "DELETE of a non-existing override still returns 200 with ok=true (no-op). Idempotent but may mislead clients; consider returning {removed: false} when nothing was unset."},
+      {"endpoint": "/api/datasets/{id}/snapshot-all", "issue": "Snapshot entries cap at 60 days per term; documented only in comment. Consider exposing cap in response or README."},
+      {"endpoint": "/api/datasets/{id}/campaign", "issue": "POST payload accepts an empty keywords list silently (returns added=[]). Acceptable, but could warn."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Inline-edit persistence on filtered view", "issue": "Inline edit to clicks/cpc/etc. recalculates ACoS/Beneficio correctly and shows success toast. Verified on mindfulness book: 45 → 123 clicks, row becomes Recuperable badge and row highlights as manual (coral).", "affected_selectors": ["[data-testid=\"edit-clicks-0\"]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_iter3.xml"
+  ],
+  "action_items": [
+    "(optional) Have DELETE /keyword/{term} return distinct status when no override existed.",
+    "(optional) Document snapshot 60-day cap.",
+    "(carry-over from iter2) KeywordsUnified refetch on active.book_economy change; if main agent already fixed, ignore — verified in this iteration that /keywords does display fresh data after book save (PE 30,02% visible)."
+  ],
+  "critical_code_review_comments": [
+    "server.py _recalc_dataset_kpis re-reads full doc (rows included) after every override change → O(rows) per edit. For large datasets this is heavy; consider keeping overrides-only aggregated KPIs or streaming compute.",
+    "server.py create_campaign overwrites the entire overrides dict via $set (line 251) instead of $set per-key. If two concurrent campaign POSTs race, the last writer wins and may drop overrides created between the read and the write. Use $set: {f'overrides.{term}': data} per term, or a transaction.",
+    "server.py snapshot_all recomputes acos_actual/acos_siguiente inline instead of delegating to _merge_rows_with_overrides which already stores them; duplication risk.",
+    "server.py keyword_detail synthesizes underlying_rows by scanning rows list each call (O(n)); fine for small datasets but should be memoized or indexed.",
+    "KeywordsUnified.jsx EditableCell treats non-numeric display of 'notes' as number (line 55 ternary). For notes column, toLocaleString path is bypassed but still passes strings — confirm no NaN rendered.",
+    "DashboardBlocks.jsx uses react-router Link state for filterBadge; relies on KeywordsUnified reading location.state which isn't shown in the snippet — verified visually that filter is applied.",
+    "AddKeywordWizard / AddCampaignWizard not reviewed in depth due to time; overall testid contract holds."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py"
+  ],
+  "success_rate": {"backend": "100% (37/37)", "frontend": "100% of iter3 testids verified (dashboard blocks, wizards open, kw-term click, sheet buttons, inline edit, tooltips)"},
+  "test_credentials": "N/A — app has no auth.",
+  "seed_data_creation": "Pytest fixtures create/delete TEST_EN_SearchTerm, TEST_ES_SearchTerm, TEST_XLSX, TEST_DELETE, TEST_NoEco, TEST_NewCampaign. Frontend test created/deleted UI_TEST_ITER3 dataset (price 14.99, regalías 4.50, 2 Amazon Ads rows).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pytest file at /app/backend/tests/backend_test.py has 37 cases; run: pytest /app/backend/tests/backend_test.py -v --junitxml=/app/test_reports/pytest/pytest_results.xml (≈35s incl. AI call). Iter3 additions live in classes TestIter3Overrides, TestIter3Campaign, TestIter3Snapshots, TestIter3KeywordDetail, TestIter3UnifiedSummary. Frontend testids verified: dashboard-blocks, block-{bajo-pe|recuperable|en-perdida|sin-datos}, open-kw-wizard, open-camp-wizard, add-kw-wizard, wiz-term/wiz-campaign/wiz-adtype/wiz-match/wiz-next/wiz-back/wiz-submit, wiz-clicks/wiz-cpc/wiz-impressions/wiz-orders, camp-add-kw, camp-submit, kw-term-{i}, kw-row-{i}, kw-detail-sheet, snapshot-btn, save-kw-btn, no-snapshots, edit-clicks-0 (and other edit-*), info-tooltip (multiple). Chart-vs-no-snapshots: with 0/1 snapshots shows no-snapshots block; would need ≥2 days (or DB patch) to render the chart — not tested via UI, only backend snapshot dedupe confirmed.",
+  "rca of the issue": "No bugs required RCA this iteration. All iter3 endpoints return the expected payload and the UI state wires the new testids correctly. The previous iter2 KeywordsUnified stale-book-economy concern is resolved: after saving book, /keywords now shows PE 30,02% and recomputed badges without manual reload (verified on screenshot)."
+}

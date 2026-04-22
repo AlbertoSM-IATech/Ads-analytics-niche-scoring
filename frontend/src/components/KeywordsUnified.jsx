@@ -1,65 +1,115 @@
 import { useEffect, useMemo, useState } from "react";
-import { getKeywordsUnified } from "../lib/api";
+import { getKeywordsUnified, upsertKeyword } from "../lib/api";
 import { useData } from "../context/DataContext";
 import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
+import { Button } from "./ui/button";
 import { fmtInt, fmtPct, fmtMoney, getMarketplace } from "../lib/format";
-import { ArrowDownUp, AlertCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowDownUp, AlertCircle, Plus, MoreHorizontal, Check, X, Pencil } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import KeywordDetailSheet from "./KeywordDetailSheet";
+import AddKeywordWizard from "./AddKeywordWizard";
+import AddCampaignWizard from "./AddCampaignWizard";
+import { InfoTooltip } from "./InfoTooltip";
+import { toast } from "sonner";
 
 const BADGE_STYLES = {
-  "bajo-pe": { cls: "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/30", label: "Bajo PE", desc: "ACoS por debajo del equilibrio" },
-  "recuperable": { cls: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30", label: "Recuperable", desc: "El siguiente click con venta vuelve al equilibrio" },
-  "en-perdida": { cls: "bg-red-100 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/30", label: "En pérdida", desc: "ACoS siguiente click > equilibrio" },
-  "sin-datos": { cls: "bg-neutral-100 text-neutral-600 border-neutral-200 dark:bg-neutral-700/40 dark:text-neutral-400 dark:border-neutral-600", label: "Sin datos", desc: "Configura economía del libro" },
+  "bajo-pe": { cls: "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/30", label: "Bajo PE", tip: "badge_bajo_pe" },
+  "recuperable": { cls: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30", label: "Recuperable", tip: "badge_recuperable" },
+  "en-perdida": { cls: "bg-red-100 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/30", label: "En pérdida", tip: "badge_en_perdida" },
+  "sin-datos": { cls: "bg-neutral-100 text-neutral-600 border-neutral-200 dark:bg-neutral-700/40 dark:text-neutral-400 dark:border-neutral-600", label: "Sin datos", tip: "badge_sin_datos" },
 };
 
-const Money = ({ v, sym, neg = false }) => (
-  <span className={`num ${neg && v != null && v < 0 ? "text-destructive" : ""}`}>
-    {v == null ? "—" : fmtMoney(v, sym)}
-  </span>
-);
-
-const Pct = ({ v, color }) => (
-  <span className={`num ${color || ""}`}>{v == null ? "—" : fmtPct(v)}</span>
-);
+const editableKeys = new Set(["clicks", "impressions", "cpc", "spend", "orders", "sales"]);
 
 const cols = [
   { k: "term", label: "Término" },
   { k: "impressions", label: "Impr." },
   { k: "clicks", label: "Clicks" },
-  { k: "ctr", label: "CTR" },
-  { k: "cpc", label: "CPC" },
+  { k: "ctr", label: "CTR", tip: "ctr" },
+  { k: "cpc", label: "CPC", tip: "cpc" },
   { k: "spend", label: "Gasto" },
   { k: "sales", label: "Ventas" },
   { k: "orders", label: "Ped." },
-  { k: "cvr", label: "CVR" },
-  { k: "acos_actual", label: "ACoS" },
-  { k: "acos_siguiente", label: "ACoS +1 click" },
-  { k: "beneficio_ahora", label: "Beneficio" },
-  { k: "beneficio_siguiente", label: "Benef. +1 click" },
+  { k: "cvr", label: "CVR", tip: "cvr" },
+  { k: "acos_actual", label: "ACoS", tip: "acos" },
+  { k: "acos_siguiente", label: "ACoS +1", tip: "acos_siguiente" },
+  { k: "beneficio_ahora", label: "Beneficio", tip: "beneficio_ahora" },
   { k: "badge", label: "Estado" },
+  { k: "_act", label: "" },
 ];
 
+function EditableCell({ value, onSave, type = "number", testid }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(value ?? 0);
+  useEffect(() => setVal(value ?? 0), [value]);
+  if (!editing) {
+    return (
+      <span
+        onDoubleClick={() => setEditing(true)}
+        className="cursor-text hover:text-coral transition-colors"
+        title="Doble click para editar"
+        data-testid={testid}
+      >
+        {typeof value === "number" ? (value ?? 0).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Input
+        autoFocus
+        type={type}
+        step="0.01"
+        className="h-7 w-20 rounded-sm num text-right px-1"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { onSave(Number(val) || 0); setEditing(false); }
+          if (e.key === "Escape") { setEditing(false); setVal(value ?? 0); }
+        }}
+      />
+      <button onClick={() => { onSave(Number(val) || 0); setEditing(false); }} className="text-green-600 hover:text-green-700">
+        <Check className="size-3.5" />
+      </button>
+      <button onClick={() => { setEditing(false); setVal(value ?? 0); }} className="text-muted-foreground hover:text-destructive">
+        <X className="size-3.5" />
+      </button>
+    </span>
+  );
+}
+
 export default function KeywordsUnified({ datasetId }) {
-  const { marketplace, active } = useData();
+  const { marketplace, active, loadActive } = useData();
   const sym = getMarketplace(marketplace).symbol;
+  const location = useLocation();
   const [data, setData] = useState(null);
   const [q, setQ] = useState("");
-  const [onlyLoss, setOnlyLoss] = useState(false);
+  const [filterBadge, setFilterBadge] = useState(location.state?.filterBadge || null);
   const [sortKey, setSortKey] = useState("spend");
   const [sortDir, setSortDir] = useState("desc");
+  const [selectedTerm, setSelectedTerm] = useState(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [wizKw, setWizKw] = useState(false);
+  const [wizCamp, setWizCamp] = useState(false);
+
+  const load = async () => {
+    if (!datasetId) return;
+    const r = await getKeywordsUnified(datasetId);
+    setData(r.data);
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [datasetId, active?.book_economy?.precio_libro, active?.book_economy?.regalias_por_venta]);
 
   useEffect(() => {
-    if (!datasetId) return;
-    getKeywordsUnified(datasetId).then((r) => setData(r.data));
-  }, [datasetId, active?.book_economy?.precio_libro, active?.book_economy?.regalias_por_venta]);
+    if (location.state?.filterBadge) setFilterBadge(location.state.filterBadge);
+  }, [location.state]);
 
   const rows = useMemo(() => {
     if (!data) return [];
     let arr = data.rows.filter((r) => (r.term || "").toLowerCase().includes(q.toLowerCase()));
-    if (onlyLoss) arr = arr.filter((r) => r.badge === "en-perdida");
+    if (filterBadge) arr = arr.filter((r) => r.badge === filterBadge);
     arr.sort((a, b) => {
       const av = a[sortKey] ?? 0; const bv = b[sortKey] ?? 0;
       if (typeof av === "number" || typeof bv === "number") {
@@ -70,7 +120,7 @@ export default function KeywordsUnified({ datasetId }) {
         : String(bv).localeCompare(String(av));
     });
     return arr;
-  }, [data, q, onlyLoss, sortKey, sortDir]);
+  }, [data, q, filterBadge, sortKey, sortDir]);
 
   const toggleSort = (k) => {
     if (sortKey === k) setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -80,6 +130,19 @@ export default function KeywordsUnified({ datasetId }) {
   const pe = data?.acos_equilibrio;
   const acosColor = (v) =>
     v == null ? "" : pe == null ? "" : v <= pe ? "text-green-600 dark:text-green-400" : "text-destructive";
+
+  const saveCell = async (term, field, value) => {
+    try {
+      await upsertKeyword(datasetId, { term, [field]: value });
+      toast.success(`${field} actualizado`);
+      await load();
+      await loadActive(datasetId);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || e.message);
+    }
+  };
+
+  const openDetail = (term) => { setSelectedTerm(term); setSheetOpen(true); };
 
   return (
     <div className="space-y-4 animate-fade-in" data-testid="keywords-unified">
@@ -92,42 +155,59 @@ export default function KeywordsUnified({ datasetId }) {
         </div>
       )}
       <div className="flex flex-wrap items-center gap-3 justify-between">
-        <Input
-          placeholder="Buscar keyword…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="max-w-xs rounded-md"
-          data-testid="kw-filter"
-        />
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Input
+            placeholder="Buscar keyword…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="max-w-xs rounded-md"
+            data-testid="kw-filter"
+          />
+          {filterBadge && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-md"
+              onClick={() => setFilterBadge(null)}
+              data-testid="clear-badge-filter"
+            >
+              <X className="size-3.5 mr-1" /> {BADGE_STYLES[filterBadge]?.label}
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
           {pe != null && (
-            <div className="text-xs">
-              <span className="text-muted-foreground mr-1">PE:</span>
+            <div className="text-xs flex items-center gap-1">
+              <span className="text-muted-foreground">PE:</span>
               <span className="num font-semibold text-coral">{fmtPct(pe)}</span>
+              <InfoTooltip content="pe" />
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <Switch checked={onlyLoss} onCheckedChange={setOnlyLoss} id="only-loss" data-testid="toggle-only-loss" />
-            <Label htmlFor="only-loss" className="text-xs">Solo en pérdida</Label>
-          </div>
           <span className="text-xs text-muted-foreground num">{rows.length} keywords</span>
+          <Button onClick={() => setWizCamp(true)} variant="outline" size="sm" className="rounded-md" data-testid="open-camp-wizard">
+            <Plus className="size-3.5 mr-1" /> Campaña
+          </Button>
+          <Button onClick={() => setWizKw(true)} size="sm" className="rounded-md bg-coral hover:bg-coral-500 text-white" data-testid="open-kw-wizard">
+            <Plus className="size-3.5 mr-1" /> Keyword
+          </Button>
         </div>
       </div>
 
       <div className="border border-border rounded-lg overflow-x-auto bg-card">
         <table className="w-full text-sm">
-          <thead className="bg-muted/40 sticky top-0">
+          <thead className="bg-muted/40">
             <tr>
               {cols.map((c) => (
                 <th
                   key={c.k}
-                  onClick={() => toggleSort(c.k)}
-                  className="text-left px-3 py-2.5 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold cursor-pointer select-none hover:text-foreground whitespace-nowrap"
+                  onClick={() => c.k !== "_act" && c.k !== "badge" && toggleSort(c.k)}
+                  className={`text-left px-3 py-2.5 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold ${c.k !== "_act" ? "cursor-pointer hover:text-foreground" : ""} select-none whitespace-nowrap`}
                   data-testid={`kw-col-${c.k}`}
                 >
                   <span className="inline-flex items-center gap-1">
                     {c.label}
-                    <ArrowDownUp className="size-3 opacity-40" />
+                    {c.tip && <InfoTooltip content={c.tip} />}
+                    {c.k !== "_act" && c.k !== "badge" && c.k !== "term" && <ArrowDownUp className="size-3 opacity-40" />}
                   </span>
                 </th>
               ))}
@@ -137,24 +217,57 @@ export default function KeywordsUnified({ datasetId }) {
             {rows.map((r, i) => {
               const b = BADGE_STYLES[r.badge] || BADGE_STYLES["sin-datos"];
               return (
-                <tr key={i} className="border-t border-border hover:bg-muted/30" data-testid={`kw-row-${i}`}>
-                  <td className="px-3 py-2 max-w-[260px] truncate">{r.term}</td>
-                  <td className="px-3 py-2 num text-right">{fmtInt(r.impressions)}</td>
-                  <td className="px-3 py-2 num text-right">{fmtInt(r.clicks)}</td>
+                <tr key={i} className={`border-t border-border hover:bg-muted/30 ${r.is_manual ? "bg-coral/5" : ""}`} data-testid={`kw-row-${i}`}>
+                  <td className="px-3 py-2 max-w-[240px]">
+                    <button
+                      onClick={() => openDetail(r.term)}
+                      className="text-left hover:text-coral font-medium truncate block w-full"
+                      data-testid={`kw-term-${i}`}
+                    >
+                      {r.term}
+                    </button>
+                    {r.campaign && (
+                      <div className="text-[10px] text-muted-foreground truncate">{r.campaign}</div>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 num text-right">
+                    <EditableCell value={r.impressions} onSave={(v) => saveCell(r.term, "impressions", v)} testid={`edit-impr-${i}`} />
+                  </td>
+                  <td className="px-3 py-2 num text-right">
+                    <EditableCell value={r.clicks} onSave={(v) => saveCell(r.term, "clicks", v)} testid={`edit-clicks-${i}`} />
+                  </td>
                   <td className="px-3 py-2 num text-right">{fmtPct(r.ctr)}</td>
-                  <td className="px-3 py-2 num text-right">{fmtMoney(r.cpc, sym)}</td>
-                  <td className="px-3 py-2 num text-right">{fmtMoney(r.spend, sym)}</td>
-                  <td className="px-3 py-2 num text-right">{fmtMoney(r.sales, sym)}</td>
-                  <td className="px-3 py-2 num text-right">{fmtInt(r.orders)}</td>
+                  <td className="px-3 py-2 num text-right">
+                    <EditableCell value={r.cpc} onSave={(v) => saveCell(r.term, "cpc", v)} testid={`edit-cpc-${i}`} />
+                  </td>
+                  <td className="px-3 py-2 num text-right">
+                    <EditableCell value={r.spend} onSave={(v) => saveCell(r.term, "spend", v)} testid={`edit-spend-${i}`} />
+                  </td>
+                  <td className="px-3 py-2 num text-right">
+                    <EditableCell value={r.sales} onSave={(v) => saveCell(r.term, "sales", v)} testid={`edit-sales-${i}`} />
+                  </td>
+                  <td className="px-3 py-2 num text-right">
+                    <EditableCell value={r.orders} onSave={(v) => saveCell(r.term, "orders", v)} testid={`edit-orders-${i}`} />
+                  </td>
                   <td className="px-3 py-2 num text-right">{fmtPct(r.cvr)}</td>
-                  <td className="px-3 py-2 text-right"><Pct v={r.acos_actual} color={acosColor(r.acos_actual)} /></td>
-                  <td className="px-3 py-2 text-right" data-testid={`kw-acos-next-${i}`}><Pct v={r.acos_siguiente} color={acosColor(r.acos_siguiente)} /></td>
-                  <td className="px-3 py-2 text-right"><Money v={r.beneficio_ahora} sym={sym} neg /></td>
-                  <td className="px-3 py-2 text-right"><Money v={r.beneficio_siguiente} sym={sym} neg /></td>
+                  <td className={`px-3 py-2 num text-right ${acosColor(r.acos_actual)}`}>
+                    {r.acos_actual == null ? "—" : fmtPct(r.acos_actual)}
+                  </td>
+                  <td className={`px-3 py-2 num text-right ${acosColor(r.acos_siguiente)}`} data-testid={`kw-acos-next-${i}`}>
+                    {r.acos_siguiente == null ? "—" : fmtPct(r.acos_siguiente)}
+                  </td>
+                  <td className={`px-3 py-2 num text-right ${r.beneficio_ahora != null && r.beneficio_ahora < 0 ? "text-destructive" : ""}`}>
+                    {r.beneficio_ahora == null ? "—" : fmtMoney(r.beneficio_ahora, sym)}
+                  </td>
                   <td className="px-3 py-2">
-                    <span className={`badge-pill ${b.cls}`} title={b.desc} data-testid={`kw-badge-${i}`}>
+                    <span className={`badge-pill ${b.cls}`} data-testid={`kw-badge-${i}`}>
                       {b.label}
                     </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openDetail(r.term)} data-testid={`kw-detail-${i}`}>
+                      <MoreHorizontal className="size-4" />
+                    </Button>
                   </td>
                 </tr>
               );
@@ -169,6 +282,18 @@ export default function KeywordsUnified({ datasetId }) {
           </tbody>
         </table>
       </div>
+
+      <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+        <Pencil className="size-3" /> Doble click en cualquier celda editable para modificar el valor.
+      </p>
+
+      <KeywordDetailSheet
+        open={sheetOpen}
+        onClose={() => { setSheetOpen(false); load(); }}
+        term={selectedTerm}
+      />
+      <AddKeywordWizard open={wizKw} onOpenChange={setWizKw} onCreated={load} />
+      <AddCampaignWizard open={wizCamp} onOpenChange={setWizCamp} onCreated={load} />
     </div>
   );
 }

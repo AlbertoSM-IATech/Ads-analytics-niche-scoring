@@ -280,6 +280,10 @@ def parse_ads_file(content: bytes, filename: str) -> dict[str, Any]:
     df2["ad_type"] = ad_type
 
     rows = df2.to_dict(orient="records")
+    # Assign stable IDs to each row
+    import uuid as _uuid
+    for r in rows:
+        r["id"] = str(_uuid.uuid4())
     # Compute aggregates
     aggregates = compute_kpis(rows)
 
