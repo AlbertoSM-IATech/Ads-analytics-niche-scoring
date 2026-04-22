@@ -1,0 +1,47 @@
+{
+  "summary": "First iteration testing of Amazon Ads Analytics app. Backend: 17/17 pytest cases passed (100%). Frontend: complete UI flow verified (upload → dashboard → campaigns → search-terms → history → theme/marketplace). AI recommendations endpoint with Claude Sonnet 4.5 via Emergent LLM key works end-to-end. No blocking bugs found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/imports/upload", "issue": "detect_report_type() does not recognise Amazon 'Targeting' / 'Product Targeting' reports (has 'targeting' column but no customer_search_term/placement/campaign alias match), so report_type falls back to 'unknown' → UI shows 'Desconocido'. Consider adding a 'targeting' report_type detection branch."},
+      {"endpoint": "/api/imports/upload", "issue": "No max file size validation: FastAPI will accept and load the entire file in memory (await file.read()) — risk of OOM with very large reports. Consider streaming or size cap."},
+      {"endpoint": "/api/datasets/{id}/ai-recommendations", "issue": "Summary sent to LLM includes top 10 campaigns + 15 terms as a raw Python dict str(). Works, but serialising with json.dumps would be cleaner and slightly smaller tokens."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Header", "issues": ["When active dataset report_type is 'unknown', header pill shows 'Desconocido · SP' — label is fine but could be mapped to something like 'Targeting' when Keyword Text / Targeting is present but no search term column."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Extend detect_report_type in /app/backend/amazon_ads.py to detect 'targeting' reports when 'keyword text'/'targeting'/'product targeting expression' headers exist but no search-term/placement column.",
+    "(Optional) Add upload size guard to POST /api/imports/upload.",
+    "(Optional) Serialise AI prompt payload with json.dumps for cleanliness."
+  ],
+  "critical_code_review_comments": [
+    "server.py stores full parsed rows inside the dataset document (doc['rows']). For large Amazon reports this can exceed the 16MB MongoDB document limit. Consider storing rows in a separate collection keyed by dataset_id once row_count grows.",
+    "server.py:186 — ai_recommendations loads full doc including rows from Mongo even though only kpis, campaign/term aggregates are needed. Project only needed fields to reduce payload.",
+    "amazon_ads._to_number handles European decimals but the 'percent' path still divides-by-100 is NOT applied — values like '31.01%' are stored as 31.01 (which compute_kpis then re-derives, OK). Works, but worth a comment.",
+    "amazon_ads.detect_report_type 'campaign' detection runs any(a in h for h in norm) where h is the whole header string — this can falsely match short aliases; currently masked because search_term takes priority.",
+    "CORS_ORIGINS from env is split by comma but middleware is added AFTER include_router — order is fine in FastAPI but the current order means CORS headers are applied globally; acceptable.",
+    "No request/response logging middleware — hard to debug production issues.",
+    "Frontend ImportZone: no file-size / extension UI validation before POST (server returns 400, but UX could be improved)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/__init__.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "N/A - app has no auth",
+  "seed_data_creation": "Created and cleaned up TEST_EN_SearchTerm / TEST_ES_SearchTerm / TEST_XLSX / TEST_DELETE datasets during backend tests. One UI-created dataset (UI_TEST_EN) was deleted via the UI at the end of the Playwright run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests live at /app/backend/tests/backend_test.py and cover the full public API surface (health, upload EN/ES/XLSX, invalid file, list/get/delete datasets, campaigns, search-terms with suggest_negative, timeseries date + campaign fallback, AI recs). Run: pytest /app/backend/tests/backend_test.py -v --junitxml=/app/test_reports/pytest/pytest_results.xml. Frontend data-testid coverage is complete: sidebar nav-*, header (marketplace-selector, theme-toggle, mp-{id}), import-zone, dropzone, file-input, dataset-name-input, pick-file-btn, view-dashboard, campaigns-table, campaign-filter, col-{key}, campaign-row-{i}, search-terms-table, term-filter, toggle-only-negatives, term-row-{i}, neg-badge-{i}, history-panel, history-item-{id}, activate-{id}, delete-{id}, empty-state. App has no auth. Known minor limitation: SP Targeting reports report_type maps to 'unknown'.",
+  "rca of the issue": "No issue to RCA."
+}
