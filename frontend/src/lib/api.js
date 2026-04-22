@@ -23,3 +23,5 @@ export const getCampaigns = (id) => api.get(`/datasets/${id}/campaigns`);
 export const getSearchTerms = (id) => api.get(`/datasets/${id}/search-terms`);
 export const getTimeseries = (id) => api.get(`/datasets/${id}/timeseries`);
 export const getAiRecs = (id) => api.post(`/datasets/${id}/ai-recommendations`);
+export const getKeywordsUnified = (id) => api.get(`/datasets/${id}/keywords-unified`);
+export const updateBook = (id, payload) => api.put(`/datasets/${id}/book`, payload);

@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 2 testing of Publify rebranding + BookEconomy + ACoS siguiente click. Found and fixed 1 critical backend bug (MongoDB ObjectId leaking into /api/imports/upload response → every upload returned 500). After fix: 24/24 pytest cases pass (including new Publify tests: PUT /datasets/{id}/book, GET /keywords-unified formula + badges, campaigns + search-terms enriched with acos_siguiente/badge, 25MB size limit). Frontend: sidebar rebranded to Publify with coral active state, /book route saves book + shows ACoS Equilibrio (30,02%) + 3 phases, /keywords route shows rows with kw-acos-next-{i} + kw-badge-{i}, 'Solo en pérdida' filter hides non en-perdida rows, KPI ACoS shows 'PE: xx%' sublabel. One UX issue: KeywordsUnified uses stale data after saving book — it only refetches on datasetId change, not on book_economy change (requires page reload).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "/api/imports/upload", "issue": "FIXED by T1: response serialization failed with 500 because insert_one mutates doc adding ObjectId _id and the response filter only excluded 'rows'. Added '_id' to exclusion set. Without this, every POST upload returned 'ValueError: ObjectId object is not iterable'. This broke the entire app.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "/api/datasets/{id}/keywords-unified", "issue": "When book_economy has precio_libro=0 it is treated same as 'no economy' — acceptable but docstring should note this."},
+      {"endpoint": "/api/imports/upload", "issue": "Size check reads the full body into memory before checking length (await file.read()) — 25MB is fine but larger attacks would still consume RAM. Consider streaming / Content-Length header check."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Book → Keywords navigation", "issue": "After saving book economy on /book and navigating to /keywords, the keywords table remains empty with 'Configura el precio y regalías…' warning because KeywordsUnified's useEffect depends only on [datasetId] and does NOT refetch when active.book_economy updates. User must reload the page. Recommend adding active.book_economy as a dependency or depending on the full 'active' object.", "affected_selectors": ["[data-testid=\"keywords-unified\"]", "[data-testid=\"pe-warning\"]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Done by T1) Fix /api/imports/upload 500 by excluding '_id' from response payload in server.py.",
+    "Frontend: make KeywordsUnified refetch when active.book_economy changes — e.g., useEffect(..., [datasetId, active?.book_economy?.precio_libro, active?.book_economy?.regalias_por_venta]) or pass economy as prop.",
+    "Optional: same pattern likely affects CampaignsTable if it caches data after book economy change — please verify that campaigns/search-terms screens refresh after /book save."
+  ],
+  "critical_code_review_comments": [
+    "server.py upload_csv: insert_one mutates doc in place; any future field serialization should go through a projection or Pydantic response model to avoid _id leaking (same pattern occurs elsewhere: use response_model or explicit projection).",
+    "server.py ai_recommendations still loads full doc (incl. rows) from Mongo; project only needed fields.",
+    "KeywordsUnified.jsx:54-57 fetches once on datasetId; should key on book_economy too or use a data-context invalidation mechanism.",
+    "BookInfoPanel.jsx awaits loadActive after updateBook — good — but other views that cached API calls (KeywordsUnified) don't observe the refreshed active, so they remain stale.",
+    "server.py schema duplicates default book_info / book_economy literals between upload_csv insert and BookSettingsIn. Consider single source of truth via model_dump() with defaults.",
+    "acos_calc.determinar_badge: when acos_actual is None and acos_next is not None the function falls through to 'sin-datos' — that case is intentional per spec but worth a unit test.",
+    "Backend still stores full parsed rows inside the dataset document; risk of hitting 16MB limit (noted in iter1, not fixed)."
+  ],
+  "updated_files": [
+    "/app/backend/server.py",
+    "/app/backend/tests/backend_test.py"
+  ],
+  "success_rate": {"backend": "100% (24/24 after fix)", "frontend": "95% (one stale-state integration bug)"},
+  "test_credentials": "N/A - app has no auth",
+  "seed_data_creation": "Tests created/cleaned TEST_EN_SearchTerm, TEST_ES_SearchTerm, TEST_XLSX, TEST_DELETE, TEST_NoEco datasets via pytest fixtures. Also cleaned the UI_TEST_ITER2 dataset. Leftover TEST_* datasets from the initial failed run were removed via DELETE /api/datasets/{id}.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend fixed by T1 at /app/backend/server.py line ~88 (exclude _id). Pytest file at /app/backend/tests/backend_test.py now has 24 cases covering iter1 + Publify iter2 (BookSettings, KeywordsUnified formulas+badges, Campaigns/SearchTerms with economy, 25MB limit, service='publify-ads'). Run: pytest /app/backend/tests/backend_test.py -v --junitxml=/app/test_reports/pytest/pytest_results.xml (takes ~27s incl. AI call). Frontend data-testids available: publify-logo, nav-{dashboard,import,book,keywords,campaigns,ai,history}, book-panel, book-title/subtitle/categories/description/price/royalties, acos-equilibrio, save-book-btn, keywords-unified, pe-warning, kw-filter, toggle-only-loss, kw-row-{i}, kw-acos-next-{i}, kw-badge-{i}, kw-col-{k}, kpi-acos (contains PE sublabel). One integration bug to retest after main agent fix: /book → /keywords stale data.",
+  "rca of the issue": "RCA of upload 500: motor's AsyncIOMotorCollection.insert_one() mutates the input dict by setting doc['_id'] to the inserted ObjectId. server.py built `out = {k: v for k, v in doc.items() if k != 'rows'}` which kept the ObjectId. FastAPI's jsonable_encoder cannot serialize bson.ObjectId → 500 ValueError. Reproduction: POST /api/imports/upload with any valid CSV → 500. Mitigation applied: excluded '_id' from the response dict. Verified by rerunning full pytest suite (24/24 pass). Better long-term fix: declare a Pydantic response_model for /imports/upload that only exposes the public fields."
+}

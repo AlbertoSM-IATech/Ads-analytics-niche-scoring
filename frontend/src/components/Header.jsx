@@ -3,8 +3,8 @@ import { MARKETPLACES, getMarketplace, REPORT_LABELS } from "../lib/format";
 import { Sun, Moon } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "../components/ui/select";
-import { Button } from "../components/ui/button";
+} from "./ui/select";
+import { Button } from "./ui/button";
 
 export default function Header({ title, subtitle }) {
   const { marketplace, setMarketplace, theme, setTheme, active } = useData();
@@ -12,29 +12,31 @@ export default function Header({ title, subtitle }) {
 
   return (
     <header
-      className="h-14 border-b border-border flex items-center justify-between px-4 sticky top-0 bg-background/95 backdrop-blur z-10"
+      className="h-[72px] border-b border-border flex items-center justify-between px-6 sticky top-0 bg-background/90 backdrop-blur z-10"
       data-testid="header"
     >
-      <div className="flex items-baseline gap-3">
-        <h1 className="text-base font-bold tracking-tight">{title}</h1>
+      <div className="flex flex-col">
+        <div className="flex items-center gap-3">
+          <h1 className="font-heading text-xl font-semibold tracking-tight">{title}</h1>
+          {active && (
+            <span className="badge-pill bg-coral-50 text-coral-700 border-coral-200 dark:bg-coral-500/10 dark:text-coral-400 dark:border-coral-500/30">
+              {REPORT_LABELS[active.report_type] || active.report_type} · {active.ad_type}
+            </span>
+          )}
+        </div>
         {subtitle && (
           <span className="text-xs text-muted-foreground">{subtitle}</span>
-        )}
-        {active && (
-          <span className="text-[10px] uppercase tracking-widest border border-border px-2 py-0.5 rounded-sm">
-            {REPORT_LABELS[active.report_type] || active.report_type} · {active.ad_type}
-          </span>
         )}
       </div>
       <div className="flex items-center gap-2">
         <Select value={marketplace} onValueChange={setMarketplace}>
           <SelectTrigger
-            className="w-[170px] h-9 rounded-sm border-border"
+            className="w-[200px] h-10 rounded-md bg-card"
             data-testid="marketplace-selector"
           >
             <SelectValue>
               <span className="flex items-center gap-2">
-                <span>{mp.flag}</span>
+                <span className="text-base">{mp.flag}</span>
                 <span className="text-sm">{mp.name}</span>
               </span>
             </SelectValue>
@@ -45,7 +47,7 @@ export default function Header({ title, subtitle }) {
                 <span className="flex items-center gap-2">
                   <span>{m.flag}</span>
                   <span>{m.name}</span>
-                  <span className="text-muted-foreground text-xs">{m.currency}</span>
+                  <span className="text-muted-foreground text-xs num">{m.currency}</span>
                 </span>
               </SelectItem>
             ))}
@@ -54,7 +56,7 @@ export default function Header({ title, subtitle }) {
         <Button
           variant="outline"
           size="icon"
-          className="h-9 w-9 rounded-sm"
+          className="h-10 w-10 rounded-md"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           data-testid="theme-toggle"
         >

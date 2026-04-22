@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Chivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,79 +6,76 @@
 
 body {
     margin: 0;
-    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "ss01", "cv11";
 }
 
-code, .mono, .tabular {
+code, .mono, .tabular, .num {
     font-family: 'IBM Plex Mono', monospace;
     font-variant-numeric: tabular-nums;
 }
 
-h1, h2, h3, h4, h5 {
-    font-family: 'Chivo', 'IBM Plex Sans', sans-serif;
-    letter-spacing: -0.02em;
+h1, h2, h3, h4, h5, h6, .heading {
+    font-family: 'Poppins', 'Inter', sans-serif;
+    letter-spacing: -0.01em;
 }
 
 @layer base {
     :root {
-        --background: 0 0% 100%;
-        --foreground: 240 10% 4%;
-        --card: 0 0% 98%;
-        --card-foreground: 240 10% 4%;
+        /* Publify light mode — background #F7F7F7, card #FFFFFF, coral primary */
+        --background: 0 0% 97%;        /* #F7F7F7 */
+        --foreground: 0 0% 12%;        /* #1F1F1F */
+        --card: 0 0% 100%;             /* #FFFFFF */
+        --card-foreground: 0 0% 12%;
         --popover: 0 0% 100%;
-        --popover-foreground: 240 10% 4%;
-        --primary: 222 100% 50%;
+        --popover-foreground: 0 0% 12%;
+        --primary: 25 95% 61%;         /* #FB923C coral */
         --primary-foreground: 0 0% 100%;
-        --secondary: 240 5% 96%;
-        --secondary-foreground: 240 10% 4%;
-        --muted: 240 5% 96%;
-        --muted-foreground: 240 4% 32%;
-        --accent: 24 100% 50%;
+        --secondary: 0 0% 94%;         /* #F0F0F0 */
+        --secondary-foreground: 0 0% 12%;
+        --muted: 0 0% 94%;
+        --muted-foreground: 0 0% 40%;  /* #666 */
+        --accent: 217 91% 60%;         /* #3B82F6 blue */
         --accent-foreground: 0 0% 100%;
-        --destructive: 0 100% 45%;
+        --destructive: 0 84% 60%;
         --destructive-foreground: 0 0% 100%;
-        --success: 150 100% 30%;
-        --warning: 42 100% 50%;
-        --border: 240 6% 90%;
-        --input: 240 6% 90%;
-        --ring: 222 100% 50%;
-        --chart-1: 222 100% 50%;
-        --chart-2: 24 100% 50%;
-        --chart-3: 150 100% 30%;
-        --chart-4: 0 100% 45%;
-        --chart-5: 280 80% 55%;
-        --radius: 0.25rem;
+        --border: 0 0% 85%;            /* #D9D9D9 */
+        --input: 0 0% 85%;
+        --ring: 25 95% 61%;
+        --chart-1: 25 95% 61%;         /* coral */
+        --chart-2: 217 91% 60%;        /* blue */
+        --chart-3: 142 71% 45%;        /* green */
+        --chart-4: 0 84% 60%;          /* red */
+        --chart-5: 40 93% 56%;         /* amber */
+        --radius: 0.5rem;              /* 8px lg, 6px md, 4px sm */
     }
     .dark {
-        --background: 0 0% 0%;
-        --foreground: 0 0% 98%;
-        --card: 240 6% 4%;
-        --card-foreground: 0 0% 98%;
-        --popover: 240 6% 4%;
-        --popover-foreground: 0 0% 98%;
-        --primary: 222 100% 60%;
+        --background: 0 0% 12%;        /* #1E1E1E */
+        --foreground: 0 0% 95%;        /* #F2F2F2 */
+        --card: 0 0% 15%;              /* #262626 */
+        --card-foreground: 0 0% 95%;
+        --popover: 0 0% 15%;
+        --popover-foreground: 0 0% 95%;
+        --primary: 25 95% 61%;
         --primary-foreground: 0 0% 100%;
-        --secondary: 240 5% 10%;
-        --secondary-foreground: 0 0% 98%;
-        --muted: 240 5% 10%;
-        --muted-foreground: 240 5% 65%;
-        --accent: 24 100% 60%;
-        --accent-foreground: 0 0% 4%;
-        --destructive: 0 100% 65%;
-        --destructive-foreground: 0 0% 98%;
-        --success: 150 100% 45%;
-        --warning: 42 100% 55%;
-        --border: 240 6% 15%;
-        --input: 240 6% 15%;
-        --ring: 222 100% 60%;
-        --chart-1: 222 100% 65%;
-        --chart-2: 24 100% 60%;
-        --chart-3: 150 100% 45%;
-        --chart-4: 0 100% 65%;
-        --chart-5: 280 80% 70%;
+        --secondary: 0 0% 18%;         /* #2E2E2E */
+        --secondary-foreground: 0 0% 95%;
+        --muted: 0 0% 18%;
+        --muted-foreground: 0 0% 65%;  /* #A6A6A6 */
+        --accent: 217 91% 65%;
+        --accent-foreground: 0 0% 100%;
+        --destructive: 0 70% 60%;
+        --destructive-foreground: 0 0% 95%;
+        --border: 0 0% 22%;            /* #383838 */
+        --input: 0 0% 22%;
+        --ring: 25 95% 61%;
+        --chart-1: 25 95% 61%;
+        --chart-2: 217 91% 65%;
+        --chart-3: 142 71% 50%;
+        --chart-4: 0 70% 60%;
+        --chart-5: 40 93% 60%;
     }
 }
 
@@ -87,46 +84,48 @@ h1, h2, h3, h4, h5 {
     body { @apply bg-background text-foreground; }
 }
 
-/* Swiss/high-contrast utility classes */
-.grid-lines {
-    background-image:
-        linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
-        linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px);
-    background-size: 48px 48px;
+/* Focus ring coral */
+*:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(0 0% 97%), 0 0 0 4px rgba(251, 146, 60, 0.6);
+}
+.dark *:focus-visible {
+    box-shadow: 0 0 0 2px hsl(0 0% 12%), 0 0 0 4px rgba(251, 146, 60, 0.6);
 }
 
-.terminal-border {
-    position: relative;
-}
-.terminal-border::before {
-    content: "";
-    position: absolute; inset: 0;
-    padding: 1px;
-    background: linear-gradient(90deg, hsl(var(--accent)), hsl(var(--primary)), hsl(var(--accent)));
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-            mask-composite: exclude;
-    pointer-events: none;
-    animation: shimmer 4s linear infinite;
-    background-size: 200% 100%;
-}
-@keyframes shimmer {
-    to { background-position: 200% 0; }
-}
-
-/* dropzone */
+/* Dropzone */
 .dropzone {
-    border: 1.5px dashed hsl(var(--border));
+    border: 2px dashed hsl(var(--border));
+    border-radius: 0.5rem;
     transition: border-color .15s ease, background-color .15s ease;
 }
 .dropzone.active, .dropzone:hover {
-    border-color: hsl(var(--primary));
-    background: hsl(var(--muted));
+    border-color: #FB923C;
+    background: rgba(251, 146, 60, 0.05);
 }
 
-/* scrollbars */
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+/* Coral glow helper */
+.coral-card-hover {
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.coral-card-hover:hover {
+    transform: translateY(-2px);
+    border-color: rgba(251, 146, 60, 0.5);
+    box-shadow: 0 6px 20px -6px rgba(251, 146, 60, 0.35);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(133, 133, 133, 0.3); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(133, 133, 133, 0.5); }
+
+/* State badges */
+.badge-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 500;
+    border: 1px solid transparent;
+}
 
 [data-debug-wrapper="true"] { display: contents !important; }

@@ -1,38 +1,38 @@
 import { fmtInt, fmtPct, fmtMoney, getMarketplace } from "../lib/format";
 import { useData } from "../context/DataContext";
 
-const Tile = ({ label, value, accent, testid }) => (
+const Tile = ({ label, value, accent, sub, testid }) => (
   <div
-    className="border border-border p-4 rounded-sm bg-card"
+    className="border border-border p-5 rounded-lg bg-card coral-card-hover animate-fade-in"
     data-testid={testid}
   >
-    <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+    <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
       {label}
     </div>
-    <div
-      className={`mono text-2xl md:text-3xl font-semibold mt-1 tracking-tighter ${
-        accent || ""
-      }`}
-    >
+    <div className={`num text-3xl font-semibold mt-2 tracking-tight ${accent || ""}`}>
       {value}
     </div>
+    {sub && <div className="text-[11px] text-muted-foreground mt-1">{sub}</div>}
   </div>
 );
 
-export default function KpiGrid({ kpis }) {
+export default function KpiGrid({ kpis, acosEquilibrio }) {
   const { marketplace } = useData();
   const sym = getMarketplace(marketplace).symbol;
   if (!kpis)
     return (
-      <div className="border border-border p-6 rounded-sm text-sm text-muted-foreground">
+      <div className="border border-dashed border-border p-8 rounded-lg text-sm text-muted-foreground text-center bg-card">
         Importa un CSV para ver KPIs.
       </div>
     );
+  const pe = acosEquilibrio;
+  const acosAccent =
+    pe && kpis.acos
+      ? kpis.acos <= pe ? "text-green-600 dark:text-green-400"
+        : kpis.acos <= pe * 1.2 ? "text-amber-500" : "text-destructive"
+      : kpis.acos > 40 ? "text-destructive" : kpis.acos > 25 ? "text-amber-500" : "text-green-600 dark:text-green-400";
   return (
-    <div
-      className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3"
-      data-testid="kpi-grid"
-    >
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" data-testid="kpi-grid">
       <Tile label="Impresiones" value={fmtInt(kpis.impressions)} testid="kpi-impressions" />
       <Tile label="Clicks" value={fmtInt(kpis.clicks)} testid="kpi-clicks" />
       <Tile label="CTR" value={fmtPct(kpis.ctr)} testid="kpi-ctr" />
@@ -43,13 +43,14 @@ export default function KpiGrid({ kpis }) {
       <Tile
         label="ACoS"
         value={fmtPct(kpis.acos)}
-        accent={kpis.acos > 40 ? "text-destructive" : kpis.acos > 25 ? "text-[hsl(var(--warning))]" : "text-[hsl(var(--success))]"}
+        accent={acosAccent}
+        sub={pe ? `PE: ${fmtPct(pe)}` : undefined}
         testid="kpi-acos"
       />
       <Tile
         label="ROAS"
-        value={kpis.roas?.toFixed(2) || "0.00"}
-        accent={kpis.roas >= 3 ? "text-[hsl(var(--success))]" : kpis.roas >= 1.5 ? "" : "text-destructive"}
+        value={(kpis.roas ?? 0).toFixed(2)}
+        accent={kpis.roas >= 3 ? "text-green-600 dark:text-green-400" : kpis.roas >= 1.5 ? "text-amber-500" : "text-destructive"}
         testid="kpi-roas"
       />
       <Tile label="CVR" value={fmtPct(kpis.cvr)} testid="kpi-cvr" />

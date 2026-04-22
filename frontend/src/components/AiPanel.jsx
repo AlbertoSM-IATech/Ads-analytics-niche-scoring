@@ -7,12 +7,12 @@ import { toast } from "sonner";
 const iconFor = (sev) =>
   sev === "critical" ? AlertOctagon : sev === "warning" ? AlertTriangle : Info;
 
-const colorFor = (sev) =>
+const styleFor = (sev) =>
   sev === "critical"
-    ? "text-destructive border-destructive/40"
+    ? "bg-red-50 border-red-200 text-red-700 dark:bg-red-500/5 dark:border-red-500/30 dark:text-red-400"
     : sev === "warning"
-    ? "text-[hsl(var(--warning))] border-[hsl(var(--warning))]/40"
-    : "text-primary border-primary/40";
+    ? "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-500/5 dark:border-amber-500/30 dark:text-amber-400"
+    : "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-500/5 dark:border-blue-500/30 dark:text-blue-400";
 
 export default function AiPanel({ datasetId, initialRecs }) {
   const [recs, setRecs] = useState(initialRecs || null);
@@ -32,47 +32,52 @@ export default function AiPanel({ datasetId, initialRecs }) {
   };
 
   return (
-    <div className="terminal-border border border-border p-5 rounded-sm bg-card" data-testid="ai-panel">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Sparkles className="size-5 text-[hsl(var(--accent))]" />
-          <h3 className="font-bold tracking-tight">IA · Claude Sonnet 4.5</h3>
-          <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
-            Recomendaciones de optimización
-          </span>
+    <div className="border border-border rounded-lg bg-card p-6 relative overflow-hidden" data-testid="ai-panel">
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-coral via-coral-500 to-coral" />
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-md bg-coral/10 flex items-center justify-center">
+            <Sparkles className="size-5 text-coral" />
+          </div>
+          <div>
+            <h3 className="font-heading font-semibold text-lg">IA · Claude Sonnet 4.5</h3>
+            <div className="text-xs text-muted-foreground">Recomendaciones personalizadas de optimización</div>
+          </div>
         </div>
         <Button
           size="sm"
           onClick={run}
           disabled={loading || !datasetId}
-          className="rounded-sm"
+          className="rounded-md bg-coral hover:bg-coral-500 text-white"
           data-testid="generate-ai-btn"
         >
-          {loading ? <Loader2 className="size-4 animate-spin" /> : "Generar"}
+          {loading ? <><Loader2 className="size-4 animate-spin mr-2" /> Analizando…</> : "Generar"}
         </Button>
       </div>
 
       {!recs && !loading && (
-        <div className="text-sm text-muted-foreground" data-testid="ai-empty">
-          Pulsa <span className="font-medium text-foreground">Generar</span> para obtener un análisis personalizado con Claude.
+        <div className="text-sm text-muted-foreground text-center py-6 border border-dashed border-border rounded-md" data-testid="ai-empty">
+          Pulsa <span className="font-semibold text-foreground">Generar</span> para obtener tu análisis.
         </div>
       )}
 
       {recs?.recommendations?.length > 0 && (
-        <ul className="space-y-2" data-testid="ai-recs">
+        <ul className="space-y-2.5" data-testid="ai-recs">
           {recs.recommendations.map((r, i) => {
             const Icon = iconFor(r.severity);
             return (
               <li
                 key={i}
-                className={`border-l-2 pl-3 py-2 ${colorFor(r.severity)}`}
+                className={`border rounded-md p-3.5 ${styleFor(r.severity)}`}
                 data-testid={`ai-rec-${i}`}
               >
-                <div className="flex items-center gap-2">
-                  <Icon className="size-4" />
-                  <div className="font-medium text-sm text-foreground">{r.title}</div>
+                <div className="flex items-start gap-2.5">
+                  <Icon className="size-4 mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-sm text-foreground">{r.title}</div>
+                    <div className="text-xs text-muted-foreground mt-1 leading-relaxed">{r.detail}</div>
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">{r.detail}</div>
               </li>
             );
           })}

@@ -96,7 +96,179 @@ class TestHealth:
     def test_root(self, session):
         r = session.get(f"{API}/", timeout=30)
         assert r.status_code == 200
-        assert r.json().get("status") == "ok"
+        body = r.json()
+        assert body.get("status") == "ok"
+        # Publify rebranding check
+        assert body.get("service") == "publify-ads"
+
+
+# ---------- Publify iter 2: BookEconomy + ACoS siguiente click ----------
+BOOK_INFO = {
+    "title": "Mindfulness Diario",
+    "subtitle": "Pequeños hábitos",
+    "description": "Un libro sobre mindfulness.",
+    "categories": ["Autoayuda", "Mindfulness"],
+}
+BOOK_ECONOMY = {"precio_libro": 14.99, "regalias_por_venta": 4.50}
+# expected break-even = 4.50/14.99*100 ≈ 30.0200...%
+EXPECTED_ACOS_EQ = 4.50 / 14.99 * 100
+
+
+class TestBookSettings:
+    def test_put_book_persists(self, session, en_dataset):
+        r = session.put(
+            f"{API}/datasets/{en_dataset['id']}/book",
+            json={"info": BOOK_INFO, "economy": BOOK_ECONOMY},
+            timeout=30,
+        )
+        assert r.status_code == 200, r.text
+        assert r.json().get("ok") is True
+
+        # GET dataset should now include book_info and book_economy
+        g = session.get(f"{API}/datasets/{en_dataset['id']}", timeout=30)
+        assert g.status_code == 200
+        d = g.json()
+        assert d["book_info"]["title"] == BOOK_INFO["title"]
+        assert d["book_info"]["subtitle"] == BOOK_INFO["subtitle"]
+        assert d["book_info"]["description"] == BOOK_INFO["description"]
+        assert d["book_info"]["categories"] == BOOK_INFO["categories"]
+        assert d["book_economy"]["precio_libro"] == BOOK_ECONOMY["precio_libro"]
+        assert d["book_economy"]["regalias_por_venta"] == BOOK_ECONOMY["regalias_por_venta"]
+
+    def test_put_book_404_unknown_dataset(self, session):
+        r = session.put(
+            f"{API}/datasets/does-not-exist/book",
+            json={"info": BOOK_INFO, "economy": BOOK_ECONOMY},
+            timeout=30,
+        )
+        assert r.status_code == 404
+
+
+class TestKeywordsUnified:
+    def test_unified_structure_and_formulas(self, session, en_dataset):
+        # ensure book saved first
+        session.put(
+            f"{API}/datasets/{en_dataset['id']}/book",
+            json={"info": BOOK_INFO, "economy": BOOK_ECONOMY},
+            timeout=30,
+        )
+        r = session.get(f"{API}/datasets/{en_dataset['id']}/keywords-unified", timeout=30)
+        assert r.status_code == 200
+        body = r.json()
+
+        # required top-level keys
+        for k in ("key", "rows", "acos_equilibrio", "guias_fase", "book_economy"):
+            assert k in body, f"missing '{k}' in response"
+
+        # (a) acos_equilibrio correctness
+        assert body["acos_equilibrio"] is not None
+        assert abs(body["acos_equilibrio"] - EXPECTED_ACOS_EQ) < 0.01
+
+        # guias_fase
+        g = body["guias_fase"]
+        assert abs(g["lanzamiento"] - EXPECTED_ACOS_EQ * 1.7) < 0.01
+        assert abs(g["dominio"] - EXPECTED_ACOS_EQ * 1.2) < 0.01
+        assert abs(g["beneficio"] - EXPECTED_ACOS_EQ * 0.5) < 0.01
+
+        # book_economy echoed
+        assert body["book_economy"]["precio_libro"] == BOOK_ECONOMY["precio_libro"]
+
+        rows = body["rows"]
+        assert len(rows) >= 1
+        # (b) each row has required fields
+        for row in rows:
+            for f in ("term", "impressions", "clicks", "ctr", "cpc", "spend", "sales",
+                      "orders", "acos_actual", "acos_siguiente",
+                      "beneficio_ahora", "beneficio_siguiente", "cvr", "badge"):
+                assert f in row, f"missing field {f} in row {row}"
+
+        # (c) Verify acos_siguiente formula for a row with sales>0
+        mindful = next(r for r in rows if r["term"] == "mindfulness book")
+        # mindfulness book: spend=27.90, sales=89.97, clicks=45 → cpc=27.90/45
+        expected_cpc = 27.90 / 45
+        expected_acos_next = ((27.90 + expected_cpc) / (89.97 + 14.99)) * 100
+        assert abs(mindful["acos_siguiente"] - expected_acos_next) < 0.5
+        # beneficio_ahora = 89.97 - 27.90
+        assert abs(mindful["beneficio_ahora"] - (89.97 - 27.90)) < 0.01
+
+        # (d) badge logic: mindfulness acos_actual = 27.90/89.97*100 ≈ 31.01%
+        # vs acos_eq ≈ 30.02 → acos_actual > eq; acos_next ≈ (28.52/104.96)*100 ≈ 27.17 <= eq → "recuperable"
+        assert mindful["badge"] in ("recuperable", "en-perdida", "bajo-pe")
+        # compute expected
+        acos_actual = 27.90 / 89.97 * 100
+        if acos_actual <= EXPECTED_ACOS_EQ:
+            expected_badge = "bajo-pe"
+        elif expected_acos_next <= EXPECTED_ACOS_EQ:
+            expected_badge = "recuperable"
+        else:
+            expected_badge = "en-perdida"
+        assert mindful["badge"] == expected_badge
+
+        # row with orders=0 and sales=0 → acos_actual is None → badge calculated with only acos_next
+        buddha = next(r for r in rows if r["term"] == "buddha quotes")
+        # sales=0 → acos_actual None; acos_next computed with price → finite number
+        assert buddha["acos_actual"] is None
+        assert buddha["acos_siguiente"] is not None
+
+    def test_unified_without_economy_sin_datos(self, session):
+        # Upload a fresh dataset without setting book economy
+        files = {"file": ("fresh.csv", CSV_EN.encode("utf-8"), "text/csv")}
+        r = session.post(f"{API}/imports/upload", files=files,
+                         data={"marketplace": "us", "dataset_name": "TEST_NoEco"}, timeout=60)
+        assert r.status_code == 200
+        ds_id = r.json()["id"]
+        try:
+            u = session.get(f"{API}/datasets/{ds_id}/keywords-unified", timeout=30)
+            assert u.status_code == 200
+            body = u.json()
+            assert body["acos_equilibrio"] is None
+            for row in body["rows"]:
+                assert row["badge"] == "sin-datos"
+                assert row["acos_siguiente"] is None
+        finally:
+            session.delete(f"{API}/datasets/{ds_id}", timeout=30)
+
+
+class TestCampaignsWithEconomy:
+    def test_campaigns_include_badge_and_acos_next(self, session, en_dataset):
+        session.put(
+            f"{API}/datasets/{en_dataset['id']}/book",
+            json={"info": BOOK_INFO, "economy": BOOK_ECONOMY},
+            timeout=30,
+        )
+        r = session.get(f"{API}/datasets/{en_dataset['id']}/campaigns", timeout=30)
+        assert r.status_code == 200
+        camps = r.json()
+        for c in camps:
+            assert "acos_siguiente" in c
+            assert "badge" in c
+            assert c["badge"] in ("bajo-pe", "recuperable", "en-perdida", "sin-datos")
+
+
+class TestSearchTermsWithEconomy:
+    def test_search_terms_include_badge_and_acos_next(self, session, en_dataset):
+        session.put(
+            f"{API}/datasets/{en_dataset['id']}/book",
+            json={"info": BOOK_INFO, "economy": BOOK_ECONOMY},
+            timeout=30,
+        )
+        r = session.get(f"{API}/datasets/{en_dataset['id']}/search-terms", timeout=30)
+        assert r.status_code == 200
+        body = r.json()
+        assert "acos_equilibrio" in body
+        assert body["acos_equilibrio"] is not None
+        for row in body["rows"]:
+            assert "acos_siguiente" in row
+            assert "badge" in row
+
+
+class TestUploadSizeLimit:
+    def test_upload_too_large_413(self, session):
+        big = b"Campaign Name,Impressions,Clicks\n" + (b"x" * (26 * 1024 * 1024))
+        files = {"file": ("huge.csv", big, "text/csv")}
+        r = session.post(f"{API}/imports/upload", files=files,
+                         data={"marketplace": "us"}, timeout=120)
+        assert r.status_code == 413
 
 
 class TestUploadCSVEN:
