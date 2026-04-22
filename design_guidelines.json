@@ -1,0 +1,98 @@
+{
+  "theme": "dark and light mode supported",
+  "archetype": "Archetype 4: Swiss & High-Contrast",
+  "domain": "Analytics SaaS Dashboard for Amazon Ads",
+  "colors": {
+    "light": {
+      "background": "#FFFFFF",
+      "surface": "#FAFAFA",
+      "primary": "#0055FF",
+      "secondary": "#FF6B00",
+      "success": "#00994D",
+      "warning": "#FFB800",
+      "error": "#E60000",
+      "text": "#09090B",
+      "text_muted": "#52525B",
+      "border": "#E4E4E7"
+    },
+    "dark": {
+      "background": "#000000",
+      "surface": "#09090B",
+      "primary": "#3377FF",
+      "secondary": "#FF8C33",
+      "success": "#00CC66",
+      "warning": "#FFD147",
+      "error": "#FF6666",
+      "text": "#FAFAFA",
+      "text_muted": "#A1A1AA",
+      "border": "#27272A"
+    }
+  },
+  "typography": {
+    "headings": {
+      "family": "Chivo",
+      "weight": "font-bold",
+      "tracking": "tracking-tight"
+    },
+    "body": {
+      "family": "IBM Plex Sans",
+      "weight": "font-normal",
+      "tracking": "tracking-normal"
+    },
+    "mono": {
+      "family": "IBM Plex Mono",
+      "usage": "MUST be used for all KPI values, table data, and financial metrics."
+    },
+    "scale": {
+      "h1": "text-2xl md:text-3xl",
+      "h2": "text-xl md:text-2xl",
+      "h3": "text-lg",
+      "body": "text-sm",
+      "kpi": "text-2xl md:text-4xl tracking-tighter"
+    }
+  },
+  "layout": {
+    "strategy": "MODE B: THE CONTROL ROOM GRID",
+    "grid": "grid-cols-1 md:grid-cols-4 lg:grid-cols-12",
+    "gap": "gap-4",
+    "borders": "Cardless layout, max 4px border-radius (rounded-sm). Use 1px solid borders (border-border).",
+    "spacing": "Dense padding inside widgets (p-4 or p-6). No large empty spaces.",
+    "alignment": "Strictly rectangular, dense style. Professional finance tool feel."
+  },
+  "components": {
+    "buttons": "Square or slightly rounded (rounded-sm), flat colors, high contrast hover states.",
+    "inputs": "Flat, 1px solid border, square edges, clear focus rings (ring-1 ring-primary).",
+    "tables": "Dense, striped rows, mono font for numbers, sticky header. No excessive padding. Use Shadcn Table.",
+    "charts": "Recharts with pure geometric lines. No gradient fills under lines. Use solid bright colors (Primary, Warning, Error). Disable rounded corners on tooltips.",
+    "panels": "AI Recommendations panel should use a 'Retro-Futurism' terminal look or solid 'Tracing Beam' border to distinguish it from standard data. Avoid purple-on-white slop.",
+    "tabs": "Flat, unstyled active states with a sharp 2px bottom border or solid high-contrast background."
+  },
+  "media": {
+    "image_urls": {
+      "user_avatar": {
+        "url": "https://images.unsplash.com/photo-1744956581253-abfd023141b1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzcyUyMGF2YXRhciUyMHBvcnRyYWl0fGVufDB8fHx8MTc3Njg0ODQ1NXww&ixlib=rb-4.1.0&q=85",
+        "description": "User profile avatar for the header."
+      },
+      "amazon_icon_placeholder": {
+        "url": "https://images.unsplash.com/photo-1704204656144-3dd12c110dd8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2MzR8MHwxfHNlYXJjaHwxfHxhbWF6b24lMjBzbWlsZSUyMGJveHxlbnwwfHx8fDE3NzY4NDg0ODJ8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Placeholder for Amazon logo or marketplace identifier, if an image is absolutely required."
+      }
+    }
+  },
+  "instructions_to_main_agent": [
+    "Design specifically for Light AND Dark mode, avoiding purple-on-white AI default styles.",
+    "Implement language selection (ES, EN, IT) in the header using a Shadcn Select or DropdownMenu.",
+    "The CSV Import area should be a prominent, drag-and-drop styled zone with dashed borders. Support Search Term, Campaign, Placement reports.",
+    "Build a KPI grid (Impressions, Clicks, CTR, Spend, Sales, ACoS, ROAS, Orders, CPC). Use 'IBM Plex Mono' for all metric numbers.",
+    "Ensure the layout is highly dense and rectangular (finance/analytics native tool vibe).",
+    "Include a 'Marketplace' selector in the header (US, ES, UK, DE, FR, IT, MX).",
+    "For the charts (Spend vs Sales, ACoS by Campaign, Top Search terms), use Recharts with sharp line types and solid fills.",
+    "Build a Campaigns table with filtering and sorting capabilities.",
+    "Build a Search Terms table with negative keyword suggestions feature.",
+    "Include an 'AI Recommendations' panel powered by 'Claude Sonnet 4.5' insights. Make it distinct via its border (e.g., Warning color or animated border).",
+    "Implement an Import History and saved datasets view (mocking MongoDB).",
+    "All interactive elements MUST include a `data-testid` attribute (e.g., `data-testid=\"import-csv-button\"`).",
+    "Avoid unnecessary shadows. Rely on 1px solid borders for separation.",
+    "Main application language should be ES (Spanish) as per instructions."
+  ]
+}
