@@ -43,7 +43,7 @@ const cols = [
 ];
 
 export default function KeywordsUnified({ datasetId }) {
-  const { marketplace } = useData();
+  const { marketplace, active } = useData();
   const sym = getMarketplace(marketplace).symbol;
   const [data, setData] = useState(null);
   const [q, setQ] = useState("");
@@ -54,7 +54,7 @@ export default function KeywordsUnified({ datasetId }) {
   useEffect(() => {
     if (!datasetId) return;
     getKeywordsUnified(datasetId).then((r) => setData(r.data));
-  }, [datasetId]);
+  }, [datasetId, active?.book_economy?.precio_libro, active?.book_economy?.regalias_por_venta]);
 
   const rows = useMemo(() => {
     if (!data) return [];

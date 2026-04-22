@@ -40,3 +40,15 @@
 ## Next tasks
 - Gather feedback from user on first import with real Amazon Ads exports
 - Add P1 items on request
+
+## Update 2026-04-22 (iter 2)
+- **Rebranding Publify**: coral `#FB923C` primary, Inter + Poppins, sidebar siempre oscuro, rounded-md, logo Publify en sidebar.
+- **Lógica del archivo original añadida**:
+  - `BookInfo` + `BookEconomy` (precio_libro, regalias_por_venta) + **ACoS de Equilibrio** (`(regalias/precio)*100`).
+  - **ACoS del siguiente click** (`(spend+cpc)/(sales+precio)*100`) + **Beneficio ahora** + **Beneficio siguiente click**.
+  - Badges semánticos: `bajo-pe` / `recuperable` / `en-perdida` / `sin-datos`.
+  - Vista **Keywords unificadas** con ACoS actual, ACoS +1 click, Beneficio, CVR y badge por término.
+  - Guías de fase **Lanzamiento / Dominio / Beneficio** (1.7x / 1.2x / 0.5x del PE).
+- **Endpoints nuevos**: `PUT /api/datasets/{id}/book`, `GET /api/datasets/{id}/keywords-unified`. Existentes enriquecidos con `acos_siguiente` y `badge`.
+- **Bug fijado**: `_id` de Mongo se filtraba en respuesta de `/imports/upload` → 500. Corregido.
+- **Tests**: 24/24 backend OK. Frontend verificado.

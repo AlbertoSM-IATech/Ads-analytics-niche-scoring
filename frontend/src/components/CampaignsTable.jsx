@@ -34,7 +34,7 @@ export default function CampaignsTable({ datasetId }) {
   useEffect(() => {
     if (!datasetId) return;
     getCampaigns(datasetId).then((r) => setRows(r.data || []));
-  }, [datasetId]);
+  }, [datasetId, active?.book_economy?.precio_libro, active?.book_economy?.regalias_por_venta]);
 
   const sorted = useMemo(() => {
     const data = rows.filter((r) => (r.campaign || "").toLowerCase().includes(q.toLowerCase()));
