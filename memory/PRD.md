@@ -73,3 +73,10 @@
 - **Marketplaces independientes**: datasets filtrados por marketplace activo, badge del marketplace en wizards y side panel, filtro en historial.
 - **Niche Study (Market Score 0-100)**: nueva ruta `/niche` con stats cards + tabla ordenada por score + breakdown (Volumen 25, Competidores 25, Precio 15, Regalías 10, Demanda 12, Competencia 12). Editable por keyword desde el tab Estudio de KW del side panel con 6 checkboxes de demanda y 3 de competencia.
 - **Testing**: 49/49 backend OK (12 nuevos: Market Score unit, acos sin venta, niche fields persistence, auto_spend).
+
+## Update 2026-04-22 (iter 5)
+- **Simulación explícita +1 click con venta**: side panel muestra una tarjeta "Simulación" con las 5 cifras antes/después (clicks, pedidos, gasto, ventas, ACoS) cuando precio_libro > 0, dejando claro que la simulación sube clicks +1 y pedidos +1 (no sólo ventas).
+- **Quick actions** del mockup original: botones `+1 Click`, `+0.01 CPC`, `+1 Pedido (con click)` para modificar manualmente los valores editables.
+- **Campaign Plans CRUD** en `/plans`: crear/editar/borrar planes agrupando keywords con fase (Lanzamiento/Dominio/Beneficio), ACoS objetivo, presupuesto diario y notas. Tarjetas con resumen agregado y `phase_target_acos` = PE × {1.7 / 1.2 / 0.5}.
+- **Export de keywords negativas** en formato Amazon Bulk Sheet (`GET /datasets/{id}/export/negatives`) para subir directamente a Seller Central. Botón en /keywords.
+- **Testing**: 65/65 backend (16 nuevos) + frontend de simulación, plans y export validado.
