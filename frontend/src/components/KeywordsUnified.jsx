@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { getKeywordsUnified, upsertKeyword } from "../lib/api";
+import { getKeywordsUnified, upsertKeyword, exportNegativesUrl } from "../lib/api";
 import { useData } from "../context/DataContext";
 import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
 import { fmtInt, fmtPct, fmtMoney, getMarketplace } from "../lib/format";
-import { ArrowDownUp, AlertCircle, Plus, MoreHorizontal, Check, X, Pencil } from "lucide-react";
+import { ArrowDownUp, AlertCircle, Plus, MoreHorizontal, Check, X, Pencil, Download } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import KeywordDetailSheet from "./KeywordDetailSheet";
 import AddKeywordWizard from "./AddKeywordWizard";
@@ -208,6 +208,11 @@ export default function KeywordsUnified({ datasetId }) {
           </Button>
           <Button onClick={() => setWizKw(true)} size="sm" className="rounded-md bg-coral hover:bg-coral-500 text-white" data-testid="open-kw-wizard">
             <Plus className="size-3.5 mr-1" /> Keyword
+          </Button>
+          <Button asChild variant="outline" size="sm" className="rounded-md" data-testid="export-negatives-btn">
+            <a href={exportNegativesUrl(datasetId, 6)} download>
+              <Download className="size-3.5 mr-1" /> Negativas CSV
+            </a>
           </Button>
         </div>
       </div>

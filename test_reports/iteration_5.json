@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 5 testing. Backend: 16 new pytest cases in /app/backend/tests/test_iter5.py covering simulation payload in /keyword-detail, Campaign Plans CRUD, plan /summary with phase_target_acos multipliers (lanzamiento 1.7, dominio 1.2, beneficio 0.5), and /export/negatives CSV (Amazon Bulk Sheet header + negativeExact rows, filter by min_clicks). 15/16 pass. Legacy suites (iter2/3/4 = 49 tests) unaffected. Frontend: nav-plans, /plans with campaign-plans + new-plan-btn + plan-editor Dialog, export-negatives-btn on /keywords with correct href /api/datasets/{id}/export/negatives?min_clicks=6 all present and functional. BUG: GET /api/datasets/{id}/plans returns 404 when a valid dataset has no plans field yet (bug in list_plans: `if not doc:` evaluates empty projected doc `{}` as falsy). BUG (frontend): in KeywordDetailSheet `tab-ads`, the required simulation-card with 5 SimBox (clicks/pedidos/gasto/ventas/ACoS now→next) is NOT rendered and the quick-actions card with qa-plus-click / qa-plus-cpc / qa-plus-order buttons is missing. SimBox component is defined at line 79 of KeywordDetailSheet.jsx but never referenced in the JSX tree. Only plain metric cards (ACoS +1 con venta / sin venta / Benef. +1 click) are shown.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/datasets/{id}/plans", "issue": "Returns 404 when dataset exists but has no `plans` field. Root cause: `if not doc:` treats the empty projected dict `{}` as falsy. Fix: use `if doc is None:`.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "KeywordDetailSheet (tab-ads)", "issue": "`simulation-card` container NOT rendered. 5 required SimBox instances (clicks/pedidos/gasto/ventas/ACoS, each showing now→next) are absent even though the `SimBox` function is defined. Required data `simulation.{clicks_next,orders_next,spend_next,sales_next,acos_next_with_sale,acos_next_no_sale}` comes correctly from backend but is not wired into the JSX.", "selector": "[data-testid='simulation-card']", "priority": "HIGH"},
+      {"component": "KeywordDetailSheet (tab-ads)", "issue": "Quick-actions card with buttons qa-plus-click, qa-plus-cpc, qa-plus-order is NOT rendered. Spec also requires qa-plus-order to also bump clicks by 1 when clicks < orders+1.", "selector": "[data-testid='qa-plus-click'], [data-testid='qa-plus-cpc'], [data-testid='qa-plus-order']", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Open KeywordDetailSheet → tab Ads", "issue": "simulation data returned by backend is ignored by the UI; user cannot visualise +1 click / +0.01 CPC / +1 pedido simulation.", "affected_selectors": ["[data-testid='simulation-card']", "[data-testid='qa-plus-click']", "[data-testid='qa-plus-cpc']", "[data-testid='qa-plus-order']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter5.py",
+    "/app/test_reports/pytest/pytest_iter5.xml"
+  ],
+  "action_items": [
+    "Fix GET /api/datasets/{id}/plans: change `if not doc:` to `if doc is None:` (or return {} when projection yields empty dict).",
+    "Render `simulation-card` with 5 `SimBox` entries (clicks now→next, pedidos now→next, gasto now→next, ventas now→next, ACoS now→next) using `data.simulation` when present (precio_libro > 0).",
+    "Add quick-actions card with buttons qa-plus-click (+1 click), qa-plus-cpc (+0.01 CPC), qa-plus-order (+1 pedido). The +1 pedido button must also bump clicks by 1 when clicks < orders+1.",
+    "Re-run /app/backend/tests/test_iter5.py after plans fix — TestCampaignPlansCRUD::test_list_empty should pass."
+  ],
+  "critical_code_review_comments": [
+    "server.py list_plans (line 700-705): `if not doc:` fails because MongoDB projection returns {} for datasets without plans field; always 404 for empty-plan datasets. This also means the UI will first show 404 on load of /plans for any dataset that never created a plan.",
+    "server.py _merge_rows_with_overrides: book_economy's `regalias_por_venta` is unused when computing only `simulation.acos_next_with_sale` in keyword_detail; simulation's new-sale revenue uses `precio_libro` directly (as spec demands) but the profit calc elsewhere uses regalias — mixing concepts in same dataset; document the distinction.",
+    "KeywordDetailSheet.jsx defines `SimBox` (line 79) but never renders it → dead code. Also quick-actions (qa-plus-*) are not implemented.",
+    "Export CSV: filename uses dataset_id[:8] without marketplace/date suffix — could collide. Low priority.",
+    "Plan summary's `phase_target_acos` rounds to 2 dp but raw `acos_equilibrio` also rounds; cumulative rounding could drift a fraction of a percent."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter5.py"
+  ],
+  "success_rate": {"backend": "93.75% (15/16 new) + 100% legacy; overall ~98% (64/65)", "frontend": "Sidebar/Routes/ExportCSV: 100%; Simulation+QuickActions: 0% (not rendered)"},
+  "test_credentials": "N/A — app has no auth.",
+  "seed_data_creation": "Per-test-module fixture uploads CSV_EN and creates TEST_ITER5 dataset (auto-deleted). TEST_ITER5_NOPRICE dataset also auto-deleted.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Full command: REACT_APP_BACKEND_URL=<url> pytest /app/backend/tests/ -v --junitxml=/app/test_reports/pytest/pytest_results.xml. iter5 tests live in /app/backend/tests/test_iter5.py (TestSimulation x3, TestCampaignPlansCRUD x7, TestPlanSummary x3, TestExportNegatives x3). Currently failing: TestCampaignPlansCRUD::test_list_empty (backend bug above). Frontend testids confirmed present: nav-plans (between nav-niche and nav-campaigns), campaign-plans, new-plan-btn, plan-editor, export-negatives-btn (href ends with /api/datasets/{id}/export/negatives?min_clicks=6). Missing testids in KeywordDetailSheet tab-ads: simulation-card, qa-plus-click, qa-plus-cpc, qa-plus-order, plus 5 SimBox instances (the SimBox function exists but is unused).",
+  "rca of the issue": "1) list_plans 404: `doc = await db.datasets.find_one({'id': id}, {'_id':0, 'plans':1})` returns `{}` for dataset without plans field; `if not doc:` is truthy for empty dict, so 404 is raised. Reproduce: upload any dataset, GET /api/datasets/{id}/plans. Fix: replace with `if doc is None:`. 2) Simulation card missing: the JSX never renders the `SimBox` sub-component nor the quick-actions buttons; developer imported the icons (MousePointerClick, ShoppingBag, TrendingUp) but the section was not added to the tab-ads body. Fix: add a `<div data-testid=\"simulation-card\">` after the existing ACoS +1 metrics with 5 SimBox calls and a quick-actions sub-card with 3 buttons (qa-plus-click, qa-plus-cpc, qa-plus-order)."
+}

@@ -79,6 +79,24 @@ class CampaignCreateIn(BaseModel):
     keywords: list[KeywordOverrideIn] = []
 
 
+class CampaignPlanIn(BaseModel):
+    name: str
+    phase: str = "lanzamiento"
+    target_acos: Optional[float] = None
+    daily_budget: Optional[float] = None
+    keyword_terms: list[str] = []
+    notes: str = ""
+
+
+class CampaignPlanUpdate(BaseModel):
+    name: Optional[str] = None
+    phase: Optional[str] = None
+    target_acos: Optional[float] = None
+    daily_budget: Optional[float] = None
+    keyword_terms: Optional[list[str]] = None
+    notes: Optional[str] = None
+
+
 # ------------------- Helpers -------------------
 def _merge_rows_with_overrides(rows: list[dict], overrides: dict[str, dict], key: str) -> list[dict]:
     """Aggregate rows by `key`, then apply any per-term overrides."""
@@ -373,6 +391,27 @@ async def keyword_detail(dataset_id: str, term: str):
     b_next = beneficio_siguiente_click(target["orders"], price, target["spend"], target["cpc"])
     cvr = conversion_pct(target["orders"], target["clicks"])
     badge = determinar_badge(acos_eq, acos_act, acos_next)
+    # Simulation: +1 click with sale (adds 1 click, 1 order)
+    simulation = None
+    if price and price > 0:
+        c_next = (target.get("clicks") or 0) + 1
+        o_next = (target.get("orders") or 0) + 1
+        s_next_spend = (target.get("spend") or 0) + (target.get("cpc") or 0)
+        s_next_sales = (target.get("sales") or 0) + price
+        simulation = {
+            "clicks_next": c_next,
+            "orders_next": o_next,
+            "spend_next": round(s_next_spend, 2),
+            "sales_next": round(s_next_sales, 2),
+            "acos_next_with_sale": round(
+                (s_next_spend / s_next_sales * 100) if s_next_sales else 0, 2
+            ),
+            "acos_next_no_sale": (
+                round(((target.get("spend") or 0) + (target.get("cpc") or 0)) /
+                      (target.get("sales") or 1) * 100, 2)
+                if (target.get("sales") or 0) > 0 else None
+            ),
+        }
     ms = calculate_market_score(
         target.get("search_volume"), target.get("competitors"),
         target.get("kw_price"), target.get("kw_royalties"),
@@ -417,6 +456,7 @@ async def keyword_detail(dataset_id: str, term: str):
         "snapshots": snaps,
         "acos_equilibrio": acos_eq,
         "override": override,
+        "simulation": simulation,
     }
 
 
@@ -656,7 +696,144 @@ async def ai_recommendations(dataset_id: str):
     return out
 
 
+# ---- Campaign Plans ----
+@api.get("/datasets/{dataset_id}/plans")
+async def list_plans(dataset_id: str):
+    doc = await db.datasets.find_one({"id": dataset_id}, {"_id": 0, "plans": 1})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    return doc.get("plans", {}) or {}
+
+
+@api.post("/datasets/{dataset_id}/plans")
+async def create_plan(dataset_id: str, payload: CampaignPlanIn):
+    if not payload.name.strip():
+        raise HTTPException(status_code=400, detail="El nombre del plan es obligatorio")
+    plan_id = str(uuid.uuid4())
+    plan = payload.model_dump()
+    plan["id"] = plan_id
+    plan["created_at"] = datetime.now(timezone.utc).isoformat()
+    r = await db.datasets.update_one(
+        {"id": dataset_id}, {"$set": {f"plans.{plan_id}": plan}}
+    )
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    return plan
+
+
+@api.put("/datasets/{dataset_id}/plans/{plan_id}")
+async def update_plan(dataset_id: str, plan_id: str, payload: CampaignPlanUpdate):
+    updates = payload.model_dump(exclude_none=True)
+    if not updates:
+        return {"ok": True}
+    setdoc = {f"plans.{plan_id}.{k}": v for k, v in updates.items()}
+    r = await db.datasets.update_one({"id": dataset_id}, {"$set": setdoc})
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    doc = await db.datasets.find_one(
+        {"id": dataset_id}, {"_id": 0, f"plans.{plan_id}": 1}
+    )
+    return (doc.get("plans") or {}).get(plan_id, {"ok": True})
+
+
+@api.delete("/datasets/{dataset_id}/plans/{plan_id}")
+async def delete_plan(dataset_id: str, plan_id: str):
+    r = await db.datasets.update_one(
+        {"id": dataset_id}, {"$unset": {f"plans.{plan_id}": ""}}
+    )
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    return {"ok": True, "deleted": plan_id}
+
+
+@api.get("/datasets/{dataset_id}/plans/{plan_id}/summary")
+async def plan_summary(dataset_id: str, plan_id: str):
+    """Return aggregated metrics for all keywords in a plan."""
+    doc = await db.datasets.find_one(
+        {"id": dataset_id},
+        {"_id": 0, "rows": 1, "overrides": 1, "plans": 1, "book_economy": 1}
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    plan = (doc.get("plans") or {}).get(plan_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan no encontrado")
+    rows = doc.get("rows", []) or []
+    overrides = doc.get("overrides", {}) or {}
+    key = "customer_search_term" if any(r.get("customer_search_term") for r in rows) else "targeting"
+    merged = _merge_rows_with_overrides(rows, overrides, key)
+    terms = set(plan.get("keyword_terms") or [])
+    scoped = [r for r in merged if (r.get(key) or "") in terms]
+    totals = {
+        "impressions": sum(r.get("impressions", 0) or 0 for r in scoped),
+        "clicks": sum(r.get("clicks", 0) or 0 for r in scoped),
+        "spend": sum(r.get("spend", 0) or 0 for r in scoped),
+        "sales": sum(r.get("sales", 0) or 0 for r in scoped),
+        "orders": sum(r.get("orders", 0) or 0 for r in scoped),
+    }
+    eco = doc.get("book_economy", {}) or {}
+    price = eco.get("precio_libro") or None
+    roy = eco.get("regalias_por_venta")
+    acos_eq = acos_equilibrio_pct(price, roy)
+    totals["acos"] = round((totals["spend"] / totals["sales"] * 100) if totals["sales"] else 0, 2)
+    totals["roas"] = round((totals["sales"] / totals["spend"]) if totals["spend"] else 0, 2)
+    totals["keyword_count"] = len(terms)
+    totals["keywords_with_data"] = len(scoped)
+    # Phase target
+    guide_map = {"lanzamiento": 1.7, "dominio": 1.2, "beneficio": 0.5}
+    totals["phase_target_acos"] = (
+        round(acos_eq * guide_map.get(plan.get("phase", "lanzamiento"), 1.0), 2)
+        if acos_eq is not None else None
+    )
+    totals["acos_equilibrio"] = acos_eq
+    totals["target_acos"] = plan.get("target_acos")
+    return {"plan": plan, "totals": totals, "rows": scoped}
+
+
+# ---- Export ----
+@api.get("/datasets/{dataset_id}/export/negatives")
+async def export_negatives(dataset_id: str, min_clicks: int = 6):
+    """Return Amazon Bulk Sheet formatted CSV of negative keyword candidates.
+    Candidates: terms with >= min_clicks and 0 orders."""
+    doc = await db.datasets.find_one(
+        {"id": dataset_id}, {"_id": 0, "rows": 1, "overrides": 1}
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    from fastapi.responses import Response
+    import csv
+    from io import StringIO
+    rows = doc.get("rows", []) or []
+    overrides = doc.get("overrides", {}) or {}
+    key = "customer_search_term" if any(r.get("customer_search_term") for r in rows) else "targeting"
+    merged = _merge_rows_with_overrides(rows, overrides, key)
+    buf = StringIO()
+    writer = csv.writer(buf)
+    # Amazon SP Bulk Sheet header (simplified for negative keywords)
+    writer.writerow([
+        "Product", "Entity", "Operation", "Campaign Id", "Ad Group Id",
+        "Campaign Name", "Ad Group Name", "Match Type", "Keyword Text",
+    ])
+    for r in merged:
+        term = r.get(key) or ""
+        clicks = r.get("clicks", 0) or 0
+        orders = r.get("orders", 0) or 0
+        if clicks >= min_clicks and orders == 0 and term:
+            writer.writerow([
+                "Sponsored Products", "Negative Keyword", "Create",
+                "", "",
+                r.get("campaign") or "", "",
+                "negativeExact", term,
+            ])
+    content = buf.getvalue()
+    return Response(
+        content=content, media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=negatives_{dataset_id[:8]}.csv"},
+    )
+
+
 app.include_router(api)
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

@@ -9,6 +9,7 @@ import BookInfoPanel from "../components/BookInfoPanel";
 import KeywordsUnified from "../components/KeywordsUnified";
 import DashboardBlocks from "../components/DashboardBlocks";
 import NicheStudy from "../components/NicheStudy";
+import CampaignPlans from "../components/CampaignPlans";
 import { useData } from "../context/DataContext";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -57,6 +58,7 @@ const titleFor = (path) => {
   if (path.startsWith("/book")) return { t: "Mi libro", s: "Economía y datos del libro" };
   if (path.startsWith("/keywords")) return { t: "Keywords unificadas", s: "con ACoS del siguiente click" };
   if (path.startsWith("/niche")) return { t: "Estudio de nicho", s: "Market Score 0-100 por keyword" };
+  if (path.startsWith("/plans")) return { t: "Planes de campaña", s: "agrupación por fase y presupuesto" };
   if (path.startsWith("/campaigns")) return { t: "Campañas", s: "análisis agregado" };
   if (path.startsWith("/ai")) return { t: "IA", s: "recomendaciones con Claude" };
   if (path.startsWith("/history")) return { t: "Historial", s: "datasets importados" };
@@ -82,6 +84,10 @@ export default function Dashboard() {
           <Route
             path="/niche"
             element={active ? <NicheStudy datasetId={active.id} /> : <Empty msg="Importa un CSV para empezar el estudio de nicho." />}
+          />
+          <Route
+            path="/plans"
+            element={active ? <CampaignPlans datasetId={active.id} /> : <Empty msg="Importa un CSV para crear planes." />}
           />
           <Route
             path="/campaigns"

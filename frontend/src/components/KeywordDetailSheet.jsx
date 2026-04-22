@@ -14,6 +14,7 @@ import {
 } from "./ui/select";
 import {
   Camera, Save, Trash2, Loader2, BookOpen, Megaphone, Sparkles, AlertCircle,
+  MousePointerClick, ShoppingBag, TrendingUp,
 } from "lucide-react";
 import {
   getKeywordDetail, snapshotAll, getSnapshots,
@@ -71,6 +72,19 @@ function Metric({ label, value, tooltip, accent, testid }) {
         {label} {tooltip && <InfoTooltip content={tooltip} />}
       </div>
       <div className={`num text-lg font-semibold mt-1 ${accent || ""}`}>{value}</div>
+    </div>
+  );
+}
+
+function SimBox({ label, now, next, accent }) {
+  return (
+    <div className="bg-background border border-border rounded p-2">
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
+      <div className="flex items-center gap-1 mt-0.5 text-xs">
+        <span className="num text-muted-foreground">{now}</span>
+        <span className="text-muted-foreground">→</span>
+        <span className={`num font-semibold ${accent || ""}`}>{next}</span>
+      </div>
     </div>
   );
 }

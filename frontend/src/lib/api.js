@@ -39,3 +39,16 @@ export const getSnapshots = (id, term) =>
   api.get(`/datasets/${id}/snapshots/${encodeURIComponent(term)}`);
 export const getKeywordDetail = (id, term) =>
   api.get(`/datasets/${id}/keyword-detail`, { params: { term } });
+
+// Campaign plans
+export const listPlans = (id) => api.get(`/datasets/${id}/plans`);
+export const createPlan = (id, payload) => api.post(`/datasets/${id}/plans`, payload);
+export const updatePlan = (id, planId, payload) =>
+  api.put(`/datasets/${id}/plans/${planId}`, payload);
+export const deletePlan = (id, planId) =>
+  api.delete(`/datasets/${id}/plans/${planId}`);
+export const getPlanSummary = (id, planId) =>
+  api.get(`/datasets/${id}/plans/${planId}/summary`);
+
+export const exportNegativesUrl = (id, minClicks = 6) =>
+  `${API}/datasets/${id}/export/negatives?min_clicks=${minClicks}`;
