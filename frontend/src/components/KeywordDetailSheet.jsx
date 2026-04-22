@@ -418,6 +418,44 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
 
             {/* ===== TAB ADS ===== */}
             <TabsContent value="ads" className="space-y-5 py-4">
+              {/* Quick actions from original */}
+              <div className="border border-border rounded-md bg-muted/30 p-3 space-y-2" data-testid="quick-actions">
+                <div className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">Acciones rápidas (simular)</div>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" className="rounded-md h-8 gap-1.5" onClick={() => setClicks(Number(clicks) + 1)} data-testid="qa-plus-click">
+                    <MousePointerClick className="size-3.5" /> +1 Click
+                  </Button>
+                  <Button size="sm" variant="outline" className="rounded-md h-8 gap-1.5" onClick={() => setCpc(Math.round((Number(cpc) + 0.01) * 100) / 100)} data-testid="qa-plus-cpc">
+                    <TrendingUp className="size-3.5" /> +0.01 CPC
+                  </Button>
+                  <Button size="sm" variant="outline" className="rounded-md h-8 gap-1.5" onClick={() => {
+                    const newOrders = Number(orders) + 1;
+                    setOrders(newOrders);
+                    setClicks(Math.max(Number(clicks) + 1, newOrders));
+                  }} data-testid="qa-plus-order">
+                    <ShoppingBag className="size-3.5" /> +1 Pedido (con click)
+                  </Button>
+                </div>
+              </div>
+
+              {/* Simulation card: +1 click generating a sale */}
+              {detail?.simulation && (
+                <div className="border border-coral/30 bg-coral/5 rounded-md p-4 space-y-2" data-testid="simulation-card">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="size-4 text-coral" />
+                    <h3 className="text-sm font-semibold">Simulación: +1 click que genera venta</h3>
+                    <InfoTooltip content="Qué pasa si el siguiente click se convierte en compra. Clicks, pedidos, gasto y ventas aumentan consecuentemente." />
+                  </div>
+                  <div className="grid grid-cols-5 gap-2 text-xs">
+                    <SimBox label="Clicks" now={m.clicks} next={detail.simulation.clicks_next} />
+                    <SimBox label="Pedidos" now={m.orders} next={detail.simulation.orders_next} />
+                    <SimBox label={`Gasto (${sym})`} now={(m.spend || 0).toFixed(2)} next={detail.simulation.spend_next.toFixed(2)} />
+                    <SimBox label={`Ventas (${sym})`} now={(m.sales || 0).toFixed(2)} next={detail.simulation.sales_next.toFixed(2)} />
+                    <SimBox label="ACoS" now={m.acos_actual == null ? "—" : fmtPct(m.acos_actual)} next={fmtPct(detail.simulation.acos_next_with_sale)} accent={pe != null && detail.simulation.acos_next_with_sale <= pe ? "text-green-600" : "text-destructive"} />
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-3 gap-2">
                 <Metric label="Impr." value={fmtInt(m.impressions)} />
                 <Metric label="Clicks" value={fmtInt(m.clicks)} />

@@ -700,7 +700,7 @@ async def ai_recommendations(dataset_id: str):
 @api.get("/datasets/{dataset_id}/plans")
 async def list_plans(dataset_id: str):
     doc = await db.datasets.find_one({"id": dataset_id}, {"_id": 0, "plans": 1})
-    if not doc:
+    if doc is None:
         raise HTTPException(status_code=404, detail="Dataset no encontrado")
     return doc.get("plans", {}) or {}
 
