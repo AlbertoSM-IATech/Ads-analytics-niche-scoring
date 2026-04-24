@@ -241,13 +241,15 @@ async def upsert_keyword(dataset_id: str, payload: KeywordOverrideIn):
     term = payload.term.strip()
     data = payload.model_dump(exclude_none=True)
     data.pop("term", None)
-    r = await db.datasets.update_one(
-        {"id": dataset_id},
-        {"$set": {f"overrides.{term}": data}},
-    )
+    # Use dotted per-field update so partial edits MERGE instead of replacing
+    # the whole `overrides.{term}` sub-document.
+    setdoc = {f"overrides.{term}.{k}": v for k, v in data.items()}
+    if not setdoc:
+        # no-op but keep the key present so downstream treats term as "manual"
+        setdoc = {f"overrides.{term}": {}}
+    r = await db.datasets.update_one({"id": dataset_id}, {"$set": setdoc})
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Dataset no encontrado")
-    # Recalc KPIs on top-level
     await _recalc_dataset_kpis(dataset_id)
     return {"ok": True, "term": term}
 

@@ -1,0 +1,24 @@
+{
+  "summary": "Re-test iter 6 after upsert_keyword fix (dotted $set merge). Iter6 suite: 13/13 PASS (including TestKeywordInlineEditCampaignMatch 3/3). Full suite pytest /app/backend/tests/: 78/78 PASS. New explicit edge-case reproduction (test_iter8_merge_edge.py) validating 3 sequential partial PUTs (campaign → match_type → clicks) all MERGE correctly also PASSES. Frontend /keywords flow: double-click edit-campaign-0 → Enter 'UI_MergeA', then edit-match-0 → Enter 'phrase', reload → both values persist in the same row. Fix verified.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter6.py",
+    "/app/backend/tests/test_iter8_merge_edge.py",
+    "/app/test_reports/pytest/pytest_iter6_v2.xml",
+    "/app/test_reports/pytest/pytest_full_iter8.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py:246 upsert_keyword now correctly builds setdoc = {f'overrides.{term}.{k}': v for k, v in data.items()} so partial PUTs MERGE instead of REPLACE — matches the pattern used in update_plan. Empty payload still creates overrides.{term} = {} so the term is considered 'manual'.",
+    "No other regressions observed across iter1–iter6 suites (78/78). Test files test_iter4.py and test_iter5.py use os.environ['REACT_APP_BACKEND_URL'] without a default; they fail collection unless the env var is exported when invoking pytest — consider using os.environ.get with the preview URL fallback for consistency (same pattern as test_iter6.py / test_iter8_merge_edge.py)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter8_merge_edge.py"],
+  "success_rate": {"backend": "100% (78/78 + 1/1 new edge test)", "frontend": "100% on inline edit merge flow"},
+  "test_credentials": "N/A",
+  "seed_data_creation": "TEST_ITER8_MERGE dataset (module-scoped, auto deleted). TEST_ITER6 dataset from iter6 suite (auto deleted). Frontend test used active demo dataset row 0 (term 'dash diet'); visible residual: UI_MergeA / phrase. Main agent may want to reset that row if noise matters.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Fix for sequential partial PUTs on /datasets/{id}/keyword is verified at both backend and UI level. If next iteration introduces more keyword override fields, extend test_iter8_merge_edge.py with the new field in the sequential chain. Demo dataset row 0 currently shows UI_MergeA / phrase from this test; not a bug.",
+  "rca of the issue": "Previously: $set:{f'overrides.{term}': data} replaced the whole sub-document. Now fixed with dotted keys {f'overrides.{term}.{k}': v for k,v in data.items()} which only updates the provided fields, preserving siblings. Verified with 3-step sequential PUT (campaign → match_type → clicks) producing a row with all three fields retained."
+}
