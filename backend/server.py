@@ -21,6 +21,7 @@ from market_score import (
 )
 from market_score_v2 import (
     MARKET_DEFAULTS, get_defaults, merge_criteria, calc_market_score_v2,
+    DEFAULT_WEIGHTS, merge_weights, WEIGHT_KEYS,
 )
 from autopilot import aggregate_autopilot, parse_niche_csv
 
@@ -87,6 +88,16 @@ class MarketCriteriaIn(BaseModel):
     idealCompetitors: Optional[float] = None
     idealPrice: Optional[float] = None
     idealRoyalties: Optional[float] = None
+
+
+class ScoreWeightsIn(BaseModel):
+    volume: Optional[float] = None
+    competitors: Optional[float] = None
+    price: Optional[float] = None
+    royalties: Optional[float] = None
+    market_structure: Optional[float] = None
+    catalog_signals: Optional[float] = None
+
 
 
 class PhaseIn(BaseModel):
@@ -224,6 +235,7 @@ async def upload_csv(
         },
         "phase": "dominio",
         "market_criteria": {},
+        "score_weights": {},
         "overrides": {},
         "snapshots": {},
     }
@@ -569,7 +581,7 @@ async def get_keywords_unified(dataset_id: str):
     doc = await db.datasets.find_one(
         {"id": dataset_id},
         {"_id": 0, "rows": 1, "overrides": 1, "book_economy": 1,
-         "marketplace": 1, "market_criteria": 1, "phase": 1}
+         "marketplace": 1, "market_criteria": 1, "phase": 1, "score_weights": 1}
     )
     if not doc:
         raise HTTPException(status_code=404, detail="Dataset no encontrado")
@@ -585,6 +597,8 @@ async def get_keywords_unified(dataset_id: str):
     mp = doc.get("marketplace") or "default"
     criteria_overrides = (doc.get("market_criteria") or {}).get(mp, {})
     effective_criteria = merge_criteria(mp, criteria_overrides)
+    effective_weights = merge_weights(doc.get("score_weights") or {})
+    NEG_MIN_CLICKS = 6
     out_rows = []
     for r in agg:
         spend = r.get("spend") or 0
@@ -607,7 +621,9 @@ async def get_keywords_unified(dataset_id: str):
             catalog_signals_checks=r.get("competition_checks", 0) or 0,
             criteria=effective_criteria,
             marketplace=doc.get("marketplace") or "default",
+            weights=effective_weights,
         )
+        suggest_neg = bool(clicks >= NEG_MIN_CLICKS and (orders or 0) == 0)
         out_rows.append({
             "term": r.get(key) or "—",
             "campaign": r.get("campaign"),
@@ -640,11 +656,15 @@ async def get_keywords_unified(dataset_id: str):
             "keyword_status": r.get("keyword_status") or "pending",
             "market_score": ms["total"],
             "score_label": ms["label"],
+            "score_breakdown": ms["breakdown"],
+            "suggest_negative": suggest_neg,
         })
     # Group summary for dashboard blocks
-    summary = {"bajo-pe": 0, "recuperable": 0, "en-perdida": 0, "sin-datos": 0}
+    summary = {"bajo-pe": 0, "recuperable": 0, "en-perdida": 0, "sin-datos": 0, "negativas": 0}
     for r in out_rows:
         summary[r["badge"]] = summary.get(r["badge"], 0) + 1
+        if r.get("suggest_negative"):
+            summary["negativas"] = summary.get("negativas", 0) + 1
     return {
         "key": key,
         "rows": out_rows,
@@ -652,6 +672,7 @@ async def get_keywords_unified(dataset_id: str):
         "guias_fase": fases,
         "book_economy": eco,
         "summary": summary,
+        "weights": effective_weights,
     }
 
 
@@ -1140,6 +1161,50 @@ async def reset_market_criteria(dataset_id: str, marketplace: str):
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Dataset no encontrado")
     return {"ok": True, "marketplace": marketplace, "effective": get_defaults(marketplace)}
+
+
+@api.get("/datasets/{dataset_id}/score-weights")
+async def get_score_weights(dataset_id: str):
+    doc = await db.datasets.find_one({"id": dataset_id}, {"_id": 0, "score_weights": 1})
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    overrides = doc.get("score_weights") or {}
+    return {
+        "defaults": DEFAULT_WEIGHTS,
+        "overrides": overrides,
+        "effective": merge_weights(overrides),
+    }
+
+
+@api.put("/datasets/{dataset_id}/score-weights")
+async def put_score_weights(dataset_id: str, payload: ScoreWeightsIn):
+    data = payload.model_dump(exclude_none=True)
+    # Validate
+    for k, v in list(data.items()):
+        if k not in WEIGHT_KEYS:
+            data.pop(k, None)
+            continue
+        try:
+            data[k] = max(0.0, float(v))
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail=f"Peso inválido: {k}")
+    setdoc = {f"score_weights.{k}": v for k, v in data.items()}
+    if not setdoc:
+        setdoc = {"score_weights": {}}
+    r = await db.datasets.update_one({"id": dataset_id}, {"$set": setdoc})
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    return {"ok": True, "effective": merge_weights(data)}
+
+
+@api.delete("/datasets/{dataset_id}/score-weights")
+async def reset_score_weights(dataset_id: str):
+    r = await db.datasets.update_one(
+        {"id": dataset_id}, {"$set": {"score_weights": {}}}
+    )
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    return {"ok": True, "effective": dict(DEFAULT_WEIGHTS)}
 
 
 @api.get("/datasets/{dataset_id}/campaigns-list")

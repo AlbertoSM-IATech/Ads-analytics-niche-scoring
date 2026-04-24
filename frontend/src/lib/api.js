@@ -46,6 +46,10 @@ export const putMarketCriteria = (id, mp, payload) =>
 export const resetMarketCriteria = (id, mp) =>
   api.delete(`/datasets/${id}/market-criteria/${mp}`);
 
+export const getScoreWeights = (id) => api.get(`/datasets/${id}/score-weights`);
+export const putScoreWeights = (id, payload) => api.put(`/datasets/${id}/score-weights`, payload);
+export const resetScoreWeights = (id) => api.delete(`/datasets/${id}/score-weights`);
+
 export const backupUrl = (id) => `${API}/datasets/${id}/backup`;
 export const restoreBackup = (id, file) => {
   const fd = new FormData();
