@@ -11,15 +11,19 @@ import { toast } from "sonner";
 import { InfoTooltip } from "./InfoTooltip";
 
 const PHASES = [
-  { key: "lanzamiento", label: "Lanzamiento", icon: Rocket, desc: "1.7× PE · visibilidad", tip: "lanzamiento" },
-  { key: "dominio", label: "Dominio", icon: Crown, desc: "1.2× PE · equilibrio", tip: "dominio" },
-  { key: "beneficio", label: "Beneficio", icon: DollarSign, desc: "0.5× PE · rentabilidad", tip: "beneficio_fase" },
+  { key: "lanzamiento", label: "Lanzamiento", icon: Rocket, desc: "Visibilidad · más tolerancia", multKey: "mult_lanzamiento", tip: "lanzamiento" },
+  { key: "dominio", label: "Dominio", icon: Crown, desc: "Equilibrio · posición", multKey: "mult_dominio", tip: "dominio" },
+  { key: "beneficio", label: "Beneficio", icon: DollarSign, desc: "Rentabilidad · estricto", multKey: "mult_beneficio", tip: "beneficio_fase" },
 ];
 
-const DEFAULTS = {
-  info: { title: "", subtitle: "", description: "", categories: [] },
-  economy: { precio_libro: 9.99, regalias_por_venta: 3.5 },
+const DEFAULT_ECO = {
+  precio_libro: 9.99,
+  regalias_por_venta: 3.5,
+  mult_lanzamiento: 1.7,
+  mult_dominio: 1.2,
+  mult_beneficio: 0.5,
 };
+const DEFAULT_INFO = { title: "", subtitle: "", description: "", categories: [] };
 
 const breakEven = (price, roy) =>
   !price || price <= 0 || roy == null ? null : (roy / price) * 100;
@@ -27,8 +31,8 @@ const breakEven = (price, roy) =>
 export default function BookInfoPanel() {
   const { active, loadActive, marketplace } = useData();
   const sym = getMarketplace(marketplace).symbol;
-  const [info, setInfo] = useState(DEFAULTS.info);
-  const [eco, setEco] = useState(DEFAULTS.economy);
+  const [info, setInfo] = useState(DEFAULT_INFO);
+  const [eco, setEco] = useState(DEFAULT_ECO);
   const [phase, setPhaseLocal] = useState("dominio");
   const [saving, setSaving] = useState(false);
 
@@ -41,17 +45,20 @@ export default function BookInfoPanel() {
       categories: active.book_info?.categories || [],
     });
     setEco({
-      precio_libro: active.book_economy?.precio_libro || 0,
-      regalias_por_venta: active.book_economy?.regalias_por_venta || 0,
+      precio_libro: active.book_economy?.precio_libro ?? DEFAULT_ECO.precio_libro,
+      regalias_por_venta: active.book_economy?.regalias_por_venta ?? DEFAULT_ECO.regalias_por_venta,
+      mult_lanzamiento: active.book_economy?.mult_lanzamiento ?? DEFAULT_ECO.mult_lanzamiento,
+      mult_dominio: active.book_economy?.mult_dominio ?? DEFAULT_ECO.mult_dominio,
+      mult_beneficio: active.book_economy?.mult_beneficio ?? DEFAULT_ECO.mult_beneficio,
     });
     setPhaseLocal(active.phase || "dominio");
   }, [active]);
 
   const pe = breakEven(Number(eco.precio_libro), Number(eco.regalias_por_venta));
   const fases = pe != null ? {
-    lanzamiento: pe * 1.7,
-    dominio: pe * 1.2,
-    beneficio: pe * 0.5,
+    lanzamiento: pe * Number(eco.mult_lanzamiento || 1.7),
+    dominio: pe * Number(eco.mult_dominio || 1.2),
+    beneficio: pe * Number(eco.mult_beneficio || 0.5),
   } : null;
 
   const handleSave = async () => {
@@ -63,16 +70,17 @@ export default function BookInfoPanel() {
         economy: {
           precio_libro: Number(eco.precio_libro) || 0,
           regalias_por_venta: Number(eco.regalias_por_venta) || 0,
+          mult_lanzamiento: Number(eco.mult_lanzamiento) || 1.7,
+          mult_dominio: Number(eco.mult_dominio) || 1.2,
+          mult_beneficio: Number(eco.mult_beneficio) || 0.5,
         },
       });
       await setPhase(active.id, phase);
       await loadActive(active.id);
-      toast.success("Libro y fase guardados");
+      toast.success("Cambios guardados");
     } catch (e) {
       toast.error(e?.response?.data?.detail || e.message);
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   const handlePhaseChange = async (newPhase) => {
@@ -81,18 +89,19 @@ export default function BookInfoPanel() {
       try {
         await setPhase(active.id, newPhase);
         await loadActive(active.id);
-        toast.success(`Fase: ${newPhase}`);
       } catch (e) { toast.error(e.message); }
     }
   };
 
   const restoreDefaults = () => {
-    if (!window.confirm("¿Restaurar valores estándar del libro? (no se guarda hasta que pulses Guardar)")) return;
-    setInfo(DEFAULTS.info);
-    setEco(DEFAULTS.economy);
+    if (!window.confirm("¿Restaurar todos los valores a los estándar? (no se guarda hasta pulsar Guardar)")) return;
+    setInfo(DEFAULT_INFO);
+    setEco(DEFAULT_ECO);
     setPhaseLocal("dominio");
     toast.info("Valores estándar cargados. Pulsa Guardar para persistir.");
   };
+
+  const resetMultiplier = (k) => setEco({ ...eco, [k]: DEFAULT_ECO[k] });
 
   if (!active) {
     return (
@@ -104,51 +113,72 @@ export default function BookInfoPanel() {
 
   return (
     <div className="space-y-5 animate-fade-in" data-testid="book-panel">
-      {/* Global phase selector */}
-      <div className="border border-border rounded-lg bg-card p-6 space-y-3" data-testid="phase-section">
-        <div className="flex items-center justify-between">
+      {/* Phase selector with editable multipliers */}
+      <div className="border border-border rounded-lg bg-card p-6 space-y-4" data-testid="phase-section">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="font-heading text-lg font-semibold flex items-center gap-2">
             Fase global del libro
-            <InfoTooltip content="La fase determina el ACoS objetivo para todas las keywords y las recomendaciones de la IA." />
+            <InfoTooltip content="La fase determina el ACoS objetivo global y las recomendaciones del Piloto Automático." />
           </h3>
-          <span className="text-xs text-muted-foreground">Aplica a todas las keywords</span>
+          <Button variant="ghost" size="sm" onClick={restoreDefaults} className="rounded-md" data-testid="restore-defaults-btn">
+            <RotateCcw className="size-3.5 mr-1.5" /> Restaurar estándar
+          </Button>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          {PHASES.map(({ key, label, icon: Icon, desc, tip }) => (
-            <button
-              key={key}
-              onClick={() => handlePhaseChange(key)}
-              className={`border rounded-lg p-4 text-left transition-all ${phase === key
-                ? "border-coral bg-coral/10 ring-2 ring-coral"
-                : "border-border bg-card hover:border-coral/40"}`}
-              data-testid={`book-phase-${key}`}
-            >
-              <div className="flex items-center gap-2">
-                <Icon className="size-4 text-coral" />
-                <span className="font-semibold text-sm">{label}</span>
-                <InfoTooltip content={tip} />
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">{desc}</div>
-              {fases && (
-                <div className="num text-sm font-semibold text-coral mt-2">
-                  Objetivo: {fmtPct(fases[key])}
+          {PHASES.map(({ key, label, icon: Icon, desc, multKey, tip }) => {
+            const multValue = Number(eco[multKey] || DEFAULT_ECO[multKey]);
+            const targetAcos = pe != null ? pe * multValue : null;
+            return (
+              <div
+                key={key}
+                className={`border rounded-lg p-4 transition-all ${phase === key
+                  ? "border-coral bg-coral/10 ring-2 ring-coral"
+                  : "border-border bg-card hover:border-coral/40"}`}
+                data-testid={`book-phase-${key}`}
+              >
+                <button
+                  onClick={() => handlePhaseChange(key)}
+                  className="flex items-center gap-2 w-full text-left"
+                  data-testid={`select-phase-${key}`}
+                >
+                  <Icon className="size-4 text-coral" />
+                  <span className="font-semibold text-sm">{label}</span>
+                  <InfoTooltip content={tip} />
+                </button>
+                <div className="text-xs text-muted-foreground mt-1">{desc}</div>
+
+                <div className="mt-3 flex items-center gap-2">
+                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">Mult. ×PE</Label>
+                  <button
+                    onClick={() => resetMultiplier(multKey)}
+                    className="text-[10px] text-muted-foreground hover:text-coral ml-auto"
+                    title="Restaurar al valor estándar"
+                    data-testid={`reset-mult-${key}`}
+                  >
+                    default: {DEFAULT_ECO[multKey]}
+                  </button>
                 </div>
-              )}
-            </button>
-          ))}
+                <Input
+                  type="number" min={0.1} max={5} step={0.05}
+                  value={eco[multKey]}
+                  onChange={(e) => setEco({ ...eco, [multKey]: e.target.value })}
+                  className="rounded-md mt-1 num h-8 text-sm"
+                  data-testid={`mult-input-${key}`}
+                />
+                <div className="num text-sm font-semibold text-coral mt-2">
+                  Objetivo: {targetAcos != null ? fmtPct(targetAcos) : "—"}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
       <div className="grid lg:grid-cols-[1fr_420px] gap-5">
         <div className="border border-border rounded-lg bg-card p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BookOpen className="size-5 text-coral" />
-              <h3 className="font-heading text-lg font-semibold">Información del libro</h3>
-            </div>
-            <Button variant="ghost" size="sm" onClick={restoreDefaults} className="rounded-md" data-testid="restore-defaults-btn">
-              <RotateCcw className="size-3.5 mr-1.5" /> Restaurar estándar
-            </Button>
+          <div className="flex items-center gap-2">
+            <BookOpen className="size-5 text-coral" />
+            <h3 className="font-heading text-lg font-semibold">Información del libro</h3>
           </div>
           <div className="grid md:grid-cols-2 gap-4">
             <div>
@@ -157,7 +187,7 @@ export default function BookInfoPanel() {
             </div>
             <div>
               <Label className="text-xs">Subtítulo</Label>
-              <Input value={info.subtitle} onChange={(e) => setInfo({ ...info, subtitle: e.target.value })} className="rounded-md mt-1" placeholder="Por qué hacemos lo que hacemos…" data-testid="book-subtitle" />
+              <Input value={info.subtitle} onChange={(e) => setInfo({ ...info, subtitle: e.target.value })} className="rounded-md mt-1" placeholder="Por qué hacemos…" data-testid="book-subtitle" />
             </div>
           </div>
           <div>
@@ -166,7 +196,7 @@ export default function BookInfoPanel() {
           </div>
           <div>
             <Label className="text-xs">Descripción</Label>
-            <Textarea value={info.description} onChange={(e) => setInfo({ ...info, description: e.target.value })} className="rounded-md mt-1 min-h-[100px]" placeholder="Resumen de tu libro…" data-testid="book-description" />
+            <Textarea value={info.description} onChange={(e) => setInfo({ ...info, description: e.target.value })} className="rounded-md mt-1 min-h-[100px]" placeholder="Resumen…" data-testid="book-description" />
           </div>
         </div>
 
@@ -188,31 +218,13 @@ export default function BookInfoPanel() {
             </div>
             <div className="bg-coral/10 border border-coral/30 rounded-md p-4" data-testid="acos-equilibrio">
               <div className="text-[10px] uppercase tracking-widest text-coral-700 dark:text-coral-300 font-semibold">
-                ACoS de Equilibrio
+                ACoS de Equilibrio (PE)
               </div>
               <div className="num text-3xl font-bold text-coral mt-1">
                 {pe == null ? "—" : fmtPct(pe)}
               </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                Por encima de este ACoS pierdes dinero por venta.
-              </div>
+              <div className="text-xs text-muted-foreground mt-1">Por encima pierdes dinero por cada venta.</div>
             </div>
-            {fases && (
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <div className="border border-border rounded-md p-2 text-center">
-                  <div className="text-muted-foreground">Lanzamiento</div>
-                  <div className="num font-semibold">{fmtPct(fases.lanzamiento)}</div>
-                </div>
-                <div className="border border-border rounded-md p-2 text-center">
-                  <div className="text-muted-foreground">Dominio</div>
-                  <div className="num font-semibold">{fmtPct(fases.dominio)}</div>
-                </div>
-                <div className="border border-border rounded-md p-2 text-center">
-                  <div className="text-muted-foreground">Beneficio</div>
-                  <div className="num font-semibold">{fmtPct(fases.beneficio)}</div>
-                </div>
-              </div>
-            )}
           </div>
           <Button onClick={handleSave} disabled={saving} className="w-full rounded-md bg-coral hover:bg-coral-500 text-white" data-testid="save-book-btn">
             <Save className="size-4 mr-2" /> Guardar cambios

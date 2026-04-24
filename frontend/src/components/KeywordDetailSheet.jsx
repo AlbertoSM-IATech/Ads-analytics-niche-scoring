@@ -15,6 +15,7 @@ import {
 import {
   Camera, Save, Trash2, Loader2, BookOpen, Megaphone, Sparkles, AlertCircle,
   MousePointerClick, ShoppingBag, TrendingUp, Plane, PauseCircle, Shield, HelpCircle,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 import {
   getKeywordDetail, snapshotAll, getSnapshots,
@@ -136,6 +137,7 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
   const [kwStatus, setKwStatus] = useState("pending");
   const [demandState, setDemandState] = useState({});
   const [compState, setCompState] = useState({});
+  const [showSnapsList, setShowSnapsList] = useState(false);
 
   useEffect(() => { setTab(initialTab); }, [initialTab, open]);
 
@@ -163,6 +165,11 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
         setDemandChecks(m.demand_checks || 0);
         setCompetitionChecks(m.competition_checks || 0);
         setKwStatus(m.keyword_status || "pending");
+        // Restore demand/competition visual checks from saved state
+        const dState = (m.demand_check_flags && typeof m.demand_check_flags === "object") ? m.demand_check_flags : {};
+        const cState = (m.competition_check_flags && typeof m.competition_check_flags === "object") ? m.competition_check_flags : {};
+        setDemandState(dState);
+        setCompState(cState);
         setAutoSpend(true); setAutoSales(true);
         // Load snapshots
         const s = await getSnapshots(active.id, term);
@@ -253,6 +260,8 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
         demand_checks: Number(demandChecks) || 0,
         competition_checks: Number(competitionChecks) || 0,
         keyword_status: kwStatus,
+        demand_check_flags: demandState,
+        competition_check_flags: compState,
       });
       toast.success("Keyword guardada");
       await loadActive(active.id);
@@ -286,7 +295,7 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
       <SheetContent
         side="right"
-        className="p-0 overflow-hidden"
+        className="p-0 overflow-hidden sm:max-w-none w-auto"
         style={{ width: `${width}px`, maxWidth: "95vw" }}
         data-testid="kw-detail-sheet"
       >
@@ -428,7 +437,7 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
               <div className="border border-border rounded-lg p-4 bg-card space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs uppercase tracking-widest font-semibold text-muted-foreground">Señales de demanda</h3>
-                  <Badge variant="outline" className="num text-xs">{demandChecks}/6</Badge>
+                  <Badge variant="outline" className="num text-xs">{Object.values(demandState).filter(Boolean).length}/6</Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                   {DEMAND_CHECKS.map((c) => {
@@ -454,7 +463,7 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
               <div className="border border-border rounded-lg p-4 bg-card space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs uppercase tracking-widest font-semibold text-muted-foreground">Señales de competencia</h3>
-                  <Badge variant="outline" className="num text-xs">{competitionChecks}/3</Badge>
+                  <Badge variant="outline" className="num text-xs">{Object.values(compState).filter(Boolean).length}/3</Badge>
                 </div>
                 <div className="grid grid-cols-1 gap-1.5">
                   {COMP_CHECKS.map((c) => {
@@ -633,6 +642,46 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
                     {chartData.length === 0 ? "Aún no hay snapshots." : "Se necesitan ≥2 snapshots para la evolución."}
                   </div>
                 )}
+                {snaps.length > 0 && (
+                  <div className="mt-3 border-t border-border pt-2">
+                    <button
+                      onClick={() => setShowSnapsList(!showSnapsList)}
+                      className="text-xs text-muted-foreground hover:text-coral flex items-center gap-1 w-full"
+                      data-testid="toggle-snaps-list"
+                    >
+                      {showSnapsList ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+                      Historial de snapshots ({snaps.length})
+                    </button>
+                    {showSnapsList && (
+                      <div className="mt-2 max-h-52 overflow-y-auto border border-border rounded-md" data-testid="snaps-list">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted/40 sticky top-0">
+                            <tr className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                              <th className="text-left px-2 py-1">Fecha</th>
+                              <th className="text-right px-2 py-1">Clicks</th>
+                              <th className="text-right px-2 py-1">Pedidos</th>
+                              <th className="text-right px-2 py-1">Gasto</th>
+                              <th className="text-right px-2 py-1">Ventas</th>
+                              <th className="text-right px-2 py-1">ACoS</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[...snaps].reverse().map((s, i) => (
+                              <tr key={i} className="border-t border-border">
+                                <td className="px-2 py-1 num">{(s.ts || "").slice(0, 10)}</td>
+                                <td className="px-2 py-1 num text-right">{fmtInt(s.clicks)}</td>
+                                <td className="px-2 py-1 num text-right">{fmtInt(s.orders)}</td>
+                                <td className="px-2 py-1 num text-right">{fmtMoney(s.spend, sym)}</td>
+                                <td className="px-2 py-1 num text-right">{fmtMoney(s.sales, sym)}</td>
+                                <td className="px-2 py-1 num text-right">{s.acos_actual == null ? "—" : fmtPct(s.acos_actual)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="border border-border rounded-md bg-card p-4 space-y-3">
@@ -728,16 +777,17 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
                       <span className="text-xs text-muted-foreground italic">Sin campañas asignadas</span>
                     )}
                   </div>
-                  <Select value="" onValueChange={(v) => { if (v && !campaigns.includes(v)) setCampaigns([...campaigns, v]); }}>
-                    <SelectTrigger className="rounded-md mt-2" data-testid="edit-campaign-select">
-                      <SelectValue placeholder={allCampaigns.length === 0 ? "No hay campañas (crea una primero)" : "Añadir campaña existente…"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allCampaigns.filter((c) => !campaigns.includes(c)).map((c) => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <select
+                    className="mt-2 w-full h-9 rounded-md border border-border bg-background px-2 text-sm"
+                    value=""
+                    onChange={(e) => { const v = e.target.value; if (v && !campaigns.includes(v)) setCampaigns([...campaigns, v]); e.target.value = ""; }}
+                    data-testid="edit-campaign-select"
+                  >
+                    <option value="">{allCampaigns.length === 0 ? "No hay campañas — crea una primero" : "Añadir campaña…"}</option>
+                    {allCampaigns.filter((c) => !campaigns.includes(c)).map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <Label className="text-xs">Notas</Label>

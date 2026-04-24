@@ -143,6 +143,13 @@ export default function AddCampaignWizard({ open, onOpenChange, onCreated }) {
                 <Plus className="size-3.5 mr-1" /> Añadir
               </Button>
             </div>
+            <div className="grid grid-cols-[1fr_80px_80px_80px_32px] gap-2 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+              <div>Keyword</div>
+              <div className="text-center">Clicks</div>
+              <div className="text-center">CPC</div>
+              <div className="text-center">Pedidos</div>
+              <div></div>
+            </div>
             <div className="space-y-2">
               {form.keywords.map((k, i) => (
                 <div key={i} className="grid grid-cols-[1fr_80px_80px_80px_32px] gap-2 items-center" data-testid={`camp-kw-${i}`}>
@@ -153,35 +160,28 @@ export default function AddCampaignWizard({ open, onOpenChange, onCreated }) {
                     className="rounded-md"
                   />
                   <Input
-                    type="number"
-                    min={0}
-                    step={1}
+                    type="number" min={0} step={1}
                     placeholder="clicks"
                     value={k.clicks}
                     onChange={(e) => updKw(i, { clicks: e.target.value })}
                     className="rounded-md num"
                   />
                   <Input
-                    type="number"
-                    min={0}
-                    step={0.01}
+                    type="number" min={0} step={0.01}
                     placeholder="CPC"
                     value={k.cpc}
                     onChange={(e) => updKw(i, { cpc: e.target.value })}
                     className="rounded-md num"
                   />
                   <Input
-                    type="number"
-                    min={0}
-                    step={1}
+                    type="number" min={0} step={1}
                     placeholder="pedidos"
                     value={k.orders}
                     onChange={(e) => updKw(i, { orders: e.target.value })}
                     className="rounded-md num"
                   />
                   <Button
-                    size="icon"
-                    variant="ghost"
+                    size="icon" variant="ghost"
                     onClick={() => rmKw(i)}
                     className="h-8 w-8"
                     disabled={form.keywords.length === 1}

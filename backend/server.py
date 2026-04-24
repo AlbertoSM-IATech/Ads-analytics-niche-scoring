@@ -46,6 +46,9 @@ class BookInfo(BaseModel):
 class BookEconomy(BaseModel):
     precio_libro: float = 0.0
     regalias_por_venta: float = 0.0
+    mult_lanzamiento: float = 1.7
+    mult_dominio: float = 1.2
+    mult_beneficio: float = 0.5
 
 
 class BookSettingsIn(BaseModel):
@@ -73,6 +76,8 @@ class KeywordOverrideIn(BaseModel):
     kw_royalties: Optional[float] = None
     demand_checks: Optional[int] = None         # 0..6
     competition_checks: Optional[int] = None    # 0..3
+    demand_check_flags: Optional[dict] = None   # {check_id: bool}
+    competition_check_flags: Optional[dict] = None
     keyword_status: Optional[str] = None        # pending|validated|rejected|testing
     auto_spend: Optional[bool] = None           # if true, spend = clicks*cpc
 
@@ -146,7 +151,8 @@ def _merge_rows_with_overrides(rows: list[dict], overrides: dict[str, dict], key
         merged["is_manual"] = bool(ov)
         merged["notes"] = ov.get("notes", "") if ov else ""
         for f in ("search_volume", "competitors", "kw_price", "kw_royalties",
-                  "demand_checks", "competition_checks", "keyword_status"):
+                  "demand_checks", "competition_checks", "keyword_status",
+                  "demand_check_flags", "competition_check_flags"):
             if ov.get(f) is not None:
                 merged[f] = ov[f]
         # Campaigns: union of natural + manual
@@ -212,7 +218,10 @@ async def upload_csv(
         "headers_detected": parsed["headers_detected"],
         "rows": parsed["rows"],
         "book_info": {"title": "", "subtitle": "", "description": "", "categories": []},
-        "book_economy": {"precio_libro": 0.0, "regalias_por_venta": 0.0},
+        "book_economy": {
+            "precio_libro": 0.0, "regalias_por_venta": 0.0,
+            "mult_lanzamiento": 1.7, "mult_dominio": 1.2, "mult_beneficio": 0.5,
+        },
         "phase": "dominio",
         "market_criteria": {},
         "overrides": {},
@@ -485,6 +494,8 @@ async def keyword_detail(dataset_id: str, term: str):
             "kw_royalties": target.get("kw_royalties") or 0,
             "demand_checks": target.get("demand_checks", 0) or 0,
             "competition_checks": target.get("competition_checks", 0) or 0,
+            "demand_check_flags": target.get("demand_check_flags", {}) or {},
+            "competition_check_flags": target.get("competition_check_flags", {}) or {},
             "keyword_status": target.get("keyword_status") or "pending",
             "market_score": ms["total"],
             "market_score_breakdown": ms["breakdown"],
