@@ -52,3 +52,17 @@ export const getPlanSummary = (id, planId) =>
 
 export const exportNegativesUrl = (id, minClicks = 6) =>
   `${API}/datasets/${id}/export/negatives?min_clicks=${minClicks}`;
+
+// Autopilot + niche import + compare
+export const getAutopilot = (id, phase = "dominio") =>
+  api.get(`/datasets/${id}/autopilot`, { params: { phase } });
+export const exportAutopilotUrl = (id) => `${API}/datasets/${id}/export/autopilot`;
+export const importNiche = (id, file) => {
+  const fd = new FormData();
+  fd.append("file", file);
+  return api.post(`/datasets/${id}/import-niche`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+export const compareDatasets = (id, otherId) =>
+  api.get(`/datasets/${id}/compare/${otherId}`);

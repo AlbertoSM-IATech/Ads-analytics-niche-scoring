@@ -19,6 +19,7 @@ from acos_calc import (
 from market_score import (
     calculate_market_score, label_for_score, acos_siguiente_sin_venta_pct,
 )
+from autopilot import aggregate_autopilot, parse_niche_csv
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -791,6 +792,204 @@ async def plan_summary(dataset_id: str, plan_id: str):
 
 
 # ---- Export ----
+@api.get("/datasets/{dataset_id}/autopilot")
+async def get_autopilot(dataset_id: str, phase: str = "dominio"):
+    """Return rule-based pause/scale/hold/investigate suggestions for the given phase."""
+    if phase not in ("lanzamiento", "dominio", "beneficio"):
+        raise HTTPException(status_code=400, detail="Fase inválida")
+    doc = await db.datasets.find_one(
+        {"id": dataset_id},
+        {"_id": 0, "rows": 1, "overrides": 1, "book_economy": 1}
+    )
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    rows = doc.get("rows", []) or []
+    overrides = doc.get("overrides", {}) or {}
+    key = "customer_search_term" if any(r.get("customer_search_term") for r in rows) else "targeting"
+    merged = _merge_rows_with_overrides(rows, overrides, key)
+    eco = doc.get("book_economy", {}) or {}
+    price = eco.get("precio_libro") or None
+    roy = eco.get("regalias_por_venta")
+    acos_eq = acos_equilibrio_pct(price, roy)
+    enriched = []
+    for r in merged:
+        enriched.append({
+            **r,
+            "term": r.get(key) or "",
+            "acos_actual": acos_actual_pct(r.get("spend"), r.get("sales")),
+            "acos_siguiente": acos_siguiente_click_pct(
+                r.get("spend"), r.get("cpc"), r.get("sales"), price
+            ),
+            "badge": determinar_badge(
+                acos_eq,
+                acos_actual_pct(r.get("spend"), r.get("sales")),
+                acos_siguiente_click_pct(r.get("spend"), r.get("cpc"), r.get("sales"), price),
+            ),
+        })
+    result = aggregate_autopilot(enriched, acos_eq, phase=phase)
+    return {
+        "acos_equilibrio": acos_eq,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        **result,
+    }
+
+
+@api.get("/datasets/{dataset_id}/export/autopilot")
+async def export_autopilot(dataset_id: str, phase: str = "dominio"):
+    """CSV bulk sheet: pause keywords + scale bid +/- %."""
+    data = await get_autopilot(dataset_id, phase=phase)
+    from fastapi.responses import Response
+    import csv
+    from io import StringIO
+    buf = StringIO()
+    w = csv.writer(buf)
+    w.writerow([
+        "Product", "Entity", "Operation", "Campaign Name", "Ad Group Name",
+        "Keyword Text", "Match Type", "Bid Action", "Bid Delta %", "Rationale",
+    ])
+    actions = data["actions"]
+    for r in actions.get("pause", []):
+        w.writerow([
+            "Sponsored Products", "Keyword", "Update",
+            r.get("campaign") or "", "",
+            r["term"], "", "Pause", "", r["rationale"],
+        ])
+    for r in actions.get("scale", []):
+        w.writerow([
+            "Sponsored Products", "Keyword", "Update",
+            r.get("campaign") or "", "",
+            r["term"], "", "Increase bid", r.get("bid_delta_pct"),
+            r["rationale"],
+        ])
+    return Response(
+        content=buf.getvalue(), media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=autopilot_{dataset_id[:8]}.csv"},
+    )
+
+
+@api.post("/datasets/{dataset_id}/import-niche")
+async def import_niche_csv(dataset_id: str, file: UploadFile = File(...)):
+    """Upload Helium10 / Publisher Rocket CSV. Match by term, update niche data in overrides."""
+    content = await file.read()
+    if len(content) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Archivo demasiado grande")
+    import pandas as pd
+    import io
+    try:
+        if (file.filename or "").lower().endswith(".xlsx"):
+            df = pd.read_excel(io.BytesIO(content))
+        else:
+            df = None
+            for enc in ("utf-8-sig", "utf-8", "latin-1"):
+                for sep in (",", ";", "\t"):
+                    try:
+                        df = pd.read_csv(io.BytesIO(content), sep=sep, encoding=enc, engine="python", dtype=str)
+                        if df.shape[1] >= 2:
+                            break
+                    except Exception:
+                        continue
+                if df is not None and df.shape[1] >= 2:
+                    break
+            if df is None:
+                raise ValueError("No se pudo leer el CSV")
+        mapping = parse_niche_csv(df)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error leyendo archivo: {e}")
+    if not mapping:
+        raise HTTPException(status_code=400, detail="No se encontraron términos con volumen/competidores")
+
+    doc = await db.datasets.find_one({"id": dataset_id}, {"_id": 0, "rows": 1, "overrides": 1})
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    rows = doc.get("rows", []) or []
+    overrides = doc.get("overrides", {}) or {}
+    key = "customer_search_term" if any(r.get("customer_search_term") for r in rows) else "targeting"
+    existing_terms = set()
+    for r in rows:
+        t = (r.get(key) or "").strip()
+        if t:
+            existing_terms.add(t)
+    existing_terms.update(overrides.keys())
+
+    matched = 0
+    created = 0
+    for term, data in mapping.items():
+        # find original-case term if present
+        canonical = next((t for t in existing_terms if t.lower() == term), None)
+        if canonical is None:
+            canonical = term
+            created += 1
+        else:
+            matched += 1
+        ov = overrides.get(canonical, {}) or {}
+        if "search_volume" in data:
+            ov["search_volume"] = data["search_volume"]
+        if "competitors" in data:
+            ov["competitors"] = data["competitors"]
+        overrides[canonical] = ov
+    await db.datasets.update_one(
+        {"id": dataset_id}, {"$set": {"overrides": overrides}}
+    )
+    return {
+        "ok": True,
+        "rows_in_file": len(mapping),
+        "matched_existing": matched,
+        "created_new": created,
+    }
+
+
+@api.get("/datasets/{dataset_id}/compare/{other_id}")
+async def compare_datasets(dataset_id: str, other_id: str):
+    """Compare KPIs + top term movers between two datasets (same marketplace recommended)."""
+    a = await db.datasets.find_one({"id": dataset_id}, {"_id": 0})
+    b = await db.datasets.find_one({"id": other_id}, {"_id": 0})
+    if a is None or b is None:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+
+    def _terms(d):
+        rows = d.get("rows", []) or []
+        overrides = d.get("overrides", {}) or {}
+        key = "customer_search_term" if any(r.get("customer_search_term") for r in rows) else "targeting"
+        merged = _merge_rows_with_overrides(rows, overrides, key)
+        out = {(r.get(key) or ""): r for r in merged}
+        return out, key
+
+    ta, key_a = _terms(a)
+    tb, key_b = _terms(b)
+    all_terms = set(ta.keys()) | set(tb.keys())
+    movers = []
+    for term in all_terms:
+        ra = ta.get(term, {})
+        rb = tb.get(term, {})
+        delta_spend = (rb.get("spend", 0) or 0) - (ra.get("spend", 0) or 0)
+        delta_sales = (rb.get("sales", 0) or 0) - (ra.get("sales", 0) or 0)
+        delta_acos = (rb.get("acos", 0) or 0) - (ra.get("acos", 0) or 0)
+        movers.append({
+            "term": term or "—",
+            "a_spend": ra.get("spend", 0) or 0,
+            "b_spend": rb.get("spend", 0) or 0,
+            "a_sales": ra.get("sales", 0) or 0,
+            "b_sales": rb.get("sales", 0) or 0,
+            "a_acos": ra.get("acos", 0) or 0,
+            "b_acos": rb.get("acos", 0) or 0,
+            "delta_spend": round(delta_spend, 2),
+            "delta_sales": round(delta_sales, 2),
+            "delta_acos": round(delta_acos, 2),
+        })
+    movers.sort(key=lambda x: abs(x["delta_sales"]) + abs(x["delta_spend"]), reverse=True)
+
+    def k(d): return d.get("kpis", {})
+    return {
+        "a": {"id": a["id"], "name": a["name"], "created_at": a.get("created_at"), "marketplace": a["marketplace"], "kpis": k(a)},
+        "b": {"id": b["id"], "name": b["name"], "created_at": b.get("created_at"), "marketplace": b["marketplace"], "kpis": k(b)},
+        "kpi_delta": {
+            k2: round((k(b).get(k2, 0) or 0) - (k(a).get(k2, 0) or 0), 2)
+            for k2 in ("impressions", "clicks", "spend", "sales", "orders", "acos", "roas", "ctr", "cpc")
+        },
+        "movers": movers[:30],
+    }
+
+
 @api.get("/datasets/{dataset_id}/export/negatives")
 async def export_negatives(dataset_id: str, min_clicks: int = 6):
     """Return Amazon Bulk Sheet formatted CSV of negative keyword candidates.

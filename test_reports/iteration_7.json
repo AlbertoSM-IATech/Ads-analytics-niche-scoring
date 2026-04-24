@@ -1,0 +1,38 @@
+{
+  "summary": "Iter 6 feature testing: Autopilot by phase (lanzamiento/dominio/beneficio) + inline editing of campaign/match_type in /keywords. Backend iter6 pytest: 12/13 PASS (one real bug found). Frontend: phase-selector with phase-lanzamiento/phase-dominio/phase-beneficio all present; clicking each swaps counts+table correctly (beneficio shows 3 pauses vs 0 in dominio/lanzamiento for demo dataset, matches spec). Inline edit of edit-campaign-0 and edit-match-0 both render, double-click→Enter persists the field, toast fires and dataset reloads. ❌ REGRESSION: editing match_type after a campaign override WIPES OUT the campaign value (reproduced in pytest test_put_keyword_match_type_reflects_in_unified and in UI). Root cause: backend upsert_keyword uses `$set: {overrides.{term}: data}` which replaces the whole sub-document rather than merging individual fields.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "PUT /api/datasets/{id}/keyword", "issue": "Sequential PUTs overwrite each other because $set replaces the entire `overrides.{term}` sub-document. Editing match_type on a row that already has a campaign override wipes out campaign (and vice-versa, and all other previously-set niche fields). Reproduced in both pytest and UI.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Inline edit campaign + match_type on same row", "issue": "Because of the backend bug above, editing one wipes the other visually on reload", "affected_selectors": ["edit-campaign-0", "edit-match-0"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter6.py",
+    "/app/test_reports/pytest/pytest_iter6.xml"
+  ],
+  "action_items": [
+    "Fix server.py upsert_keyword: replace `$set: {f'overrides.{term}': data}` with dotted per-field update, e.g. `setdoc = {f'overrides.{term}.{k}': v for k, v in data.items()}` so partial updates MERGE instead of REPLACE. Same pattern already used correctly in update_plan endpoint.",
+    "After fix, re-run `pytest /app/backend/tests/test_iter6.py::TestKeywordInlineEditCampaignMatch -v` → expect 3/3 pass."
+  ],
+  "critical_code_review_comments": [
+    "server.py:244 upsert_keyword overwrites entire overrides.{term} document — must merge per field to preserve previously set campaign/match_type/niche data. Bug masked in iter 3-5 because tests always sent multi-field payloads; iter 6 spec explicitly requires partial updates for inline edit.",
+    "autopilot.py aggregate_autopilot correctly exposes target_multiplier + target_acos + phase + counts + actions; rule thresholds match spec (pause 12/8/5, scale deltas 20/15/10).",
+    "Autopilot.jsx persists phase in localStorage('autopilot_phase') and appends ?phase= to export URL — matches spec.",
+    "KeywordsUnified.jsx cols correctly include campaign (idx 1) and match_type (idx 2) with EditableText + data-testid edit-campaign-{i}/edit-match-{i}; loadActive(datasetId) called after save to refresh active dataset — correct behavior."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "92% (12/13 iter6) — 77/78 across all suites assuming iter5 still 65/65", "frontend": "95% — all UI testids work, visual bug is a side-effect of backend"},
+  "test_credentials": "N/A",
+  "seed_data_creation": "TEST_ITER6 dataset uploaded (module-scoped fixture, auto cleanup). UI test used the existing demo dataset (book_economy precio=10 regalias=3.5, PE 38.8% ≈ spec 35%; slight diff because existing demo dataset had slightly different book_economy).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After main agent applies the upsert_keyword merge fix, run: `REACT_APP_BACKEND_URL=https://amazon-ads-importer.preview.emergentagent.com pytest /app/backend/tests/test_iter6.py -v --junitxml=/app/test_reports/pytest/pytest_iter6.xml` — expect 13/13. Also run full suite `pytest /app/backend/tests/` — expect 65+13=78 pass (ensure previous iter5 behaviour still green; a regression to watch: tests in iter3 that send full multi-field payloads will still pass after the fix because every field flows through).",
+  "rca of the issue": "server.py upsert_keyword line ~244: `await db.datasets.update_one({'id': dataset_id}, {'$set': {f'overrides.{term}': data}})` replaces the entire `overrides.{term}` sub-document with only the fields included in `payload.model_dump(exclude_none=True)`. Reproduction: (1) PUT /keyword {term:T, campaign:'X'}; (2) PUT /keyword {term:T, match_type:'phrase'}. GET /keywords-unified now shows campaign=null. Mitigation: convert the $set to a flattened dotted update, `{'$set': {f'overrides.{term}.{k}': v for k,v in data.items()}}`. This mirrors the pattern used in update_plan (server.py:730)."
+}

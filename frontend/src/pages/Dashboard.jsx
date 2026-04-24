@@ -10,6 +10,9 @@ import KeywordsUnified from "../components/KeywordsUnified";
 import DashboardBlocks from "../components/DashboardBlocks";
 import NicheStudy from "../components/NicheStudy";
 import CampaignPlans from "../components/CampaignPlans";
+import Autopilot from "../components/Autopilot";
+import CompareView from "../components/CompareView";
+import DistributionChart from "../components/DistributionChart";
 import { useData } from "../context/DataContext";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -39,7 +42,10 @@ function DashboardView() {
     <div className="space-y-6 animate-fade-in" data-testid="view-dashboard">
       <KpiGrid kpis={active?.kpis} acosEquilibrio={pe} />
       {active && (
-        <DashboardBlocks summary={summary} />
+        <>
+          <DashboardBlocks summary={summary} />
+          <DistributionChart summary={summary} />
+        </>
       )}
       {active ? (
         <>
@@ -59,6 +65,8 @@ const titleFor = (path) => {
   if (path.startsWith("/keywords")) return { t: "Keywords unificadas", s: "con ACoS del siguiente click" };
   if (path.startsWith("/niche")) return { t: "Estudio de nicho", s: "Market Score 0-100 por keyword" };
   if (path.startsWith("/plans")) return { t: "Planes de campaña", s: "agrupación por fase y presupuesto" };
+  if (path.startsWith("/autopilot")) return { t: "Piloto automático", s: "acciones sugeridas por reglas" };
+  if (path.startsWith("/compare")) return { t: "Comparar datasets", s: "antes vs después" };
   if (path.startsWith("/campaigns")) return { t: "Campañas", s: "análisis agregado" };
   if (path.startsWith("/ai")) return { t: "IA", s: "recomendaciones con Claude" };
   if (path.startsWith("/history")) return { t: "Historial", s: "datasets importados" };
@@ -88,6 +96,14 @@ export default function Dashboard() {
           <Route
             path="/plans"
             element={active ? <CampaignPlans datasetId={active.id} /> : <Empty msg="Importa un CSV para crear planes." />}
+          />
+          <Route
+            path="/autopilot"
+            element={active ? <Autopilot datasetId={active.id} /> : <Empty msg="Importa un CSV para activar el piloto automático." />}
+          />
+          <Route
+            path="/compare"
+            element={active ? <CompareView /> : <Empty msg="Importa al menos 2 datasets para compararlos." />}
           />
           <Route
             path="/campaigns"

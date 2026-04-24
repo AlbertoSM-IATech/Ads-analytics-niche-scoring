@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 import { fmtInt } from "../lib/format";
 import { Sparkles, Target, AlertCircle } from "lucide-react";
 import KeywordDetailSheet from "./KeywordDetailSheet";
+import NicheImport from "./NicheImport";
 import { Link } from "react-router-dom";
 
 const scoreColor = (n) =>
@@ -53,6 +54,7 @@ export default function NicheStudy({ datasetId }) {
 
   return (
     <div className="space-y-4 animate-fade-in" data-testid="niche-study">
+      <NicheImport onDone={load} />
       {!anyDataScored && (
         <div className="border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/5 p-3 rounded-md flex items-start gap-2 text-sm" data-testid="niche-empty-warning">
           <AlertCircle className="size-4 mt-0.5 text-amber-600" />

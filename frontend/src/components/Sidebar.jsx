@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import {
-  LayoutDashboard, Upload, Megaphone, Target, BookOpen, Sparkles, History, Compass, ListTree,
+  LayoutDashboard, Upload, Megaphone, Target, BookOpen, Sparkles, History, Compass, ListTree, Plane, GitCompare,
 } from "lucide-react";
 
 const LOGO_URL = "https://customer-assets.emergentagent.com/job_amazon-ads-importer/artifacts/lak8zra2_Artboard%2026%402x.png";
@@ -12,6 +12,8 @@ const items = [
   { to: "/keywords", label: "Keywords", icon: Target, testid: "nav-keywords" },
   { to: "/niche", label: "Estudio de nicho", icon: Compass, testid: "nav-niche" },
   { to: "/plans", label: "Planes", icon: ListTree, testid: "nav-plans" },
+  { to: "/autopilot", label: "Piloto", icon: Plane, testid: "nav-autopilot" },
+  { to: "/compare", label: "Comparar", icon: GitCompare, testid: "nav-compare" },
   { to: "/campaigns", label: "Campañas", icon: Megaphone, testid: "nav-campaigns" },
   { to: "/ai", label: "IA", icon: Sparkles, testid: "nav-ai" },
   { to: "/history", label: "Historial", icon: History, testid: "nav-history" },

@@ -25,6 +25,8 @@ const editableKeys = new Set(["clicks", "impressions", "cpc", "spend", "orders",
 
 const cols = [
   { k: "term", label: "Término" },
+  { k: "campaign", label: "Campaña" },
+  { k: "match_type", label: "Match" },
   { k: "impressions", label: "Impr." },
   { k: "clicks", label: "Clicks" },
   { k: "ctr", label: "CTR", tip: "ctr" },
@@ -39,6 +41,44 @@ const cols = [
   { k: "badge", label: "Estado" },
   { k: "_act", label: "" },
 ];
+
+function EditableText({ value, onSave, testid, placeholder = "" }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(value || "");
+  useEffect(() => setVal(value || ""), [value]);
+  if (!editing) {
+    return (
+      <span
+        onDoubleClick={() => setEditing(true)}
+        className="cursor-text hover:text-coral transition-colors inline-block max-w-[180px] truncate"
+        title="Doble click para editar"
+        data-testid={testid}
+      >
+        {value || <span className="text-muted-foreground italic">{placeholder || "—"}</span>}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Input
+        autoFocus
+        className="h-7 w-40 rounded-sm px-1"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { onSave(val); setEditing(false); }
+          if (e.key === "Escape") { setEditing(false); setVal(value || ""); }
+        }}
+      />
+      <button onClick={() => { onSave(val); setEditing(false); }} className="text-green-600">
+        <Check className="size-3.5" />
+      </button>
+      <button onClick={() => { setEditing(false); setVal(value || ""); }} className="text-muted-foreground">
+        <X className="size-3.5" />
+      </button>
+    </span>
+  );
+}
 
 function EditableCell({ value, onSave, integer = false, testid }) {
   const [editing, setEditing] = useState(false);
@@ -250,9 +290,12 @@ export default function KeywordsUnified({ datasetId }) {
                     >
                       {r.term}
                     </button>
-                    {r.campaign && (
-                      <div className="text-[10px] text-muted-foreground truncate">{r.campaign}</div>
-                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <EditableText value={r.campaign} onSave={(v) => saveCell(r.term, "campaign", v)} testid={`edit-campaign-${i}`} placeholder="sin campaña" />
+                  </td>
+                  <td className="px-3 py-2">
+                    <EditableText value={r.match_type} onSave={(v) => saveCell(r.term, "match_type", v)} testid={`edit-match-${i}`} placeholder="—" />
                   </td>
                   <td className="px-3 py-2 num text-right">
                     <EditableCell value={r.impressions} integer onSave={(v) => saveCell(r.term, "impressions", v)} testid={`edit-impr-${i}`} />
