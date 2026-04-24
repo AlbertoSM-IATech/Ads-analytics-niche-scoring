@@ -600,6 +600,7 @@ async def get_keywords_unified(dataset_id: str):
         out_rows.append({
             "term": r.get(key) or "—",
             "campaign": r.get("campaign"),
+            "campaigns": r.get("campaigns") or [],
             "is_manual": r.get("is_manual", False),
             "notes": r.get("notes", ""),
             "impressions": r.get("impressions", 0),

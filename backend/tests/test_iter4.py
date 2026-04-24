@@ -133,7 +133,7 @@ class TestNicheFieldsPersistence:
                   "demand_checks", "competition_checks"):
             assert f in m, f"missing {f}"
         bd = m["market_score_breakdown"]
-        for k in ("volume", "competitors", "price", "royalties", "demand", "competition_checks"):
+        for k in ("volume", "competitors", "price", "royalties", "market_structure", "catalog_signals"):
             assert k in bd
             assert "points" in bd[k] and "max" in bd[k]
         assert m["score_label"] in ("muy-bajo", "bajo", "medio", "bueno", "excelente")

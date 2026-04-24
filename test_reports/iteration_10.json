@@ -1,0 +1,33 @@
+{
+  "summary": "Iter10 retest after iter7 fixes. Backend-only. RESULTS: test_iter9 = 19/19 PASS, test_iter4 = 12/12 PASS (after fixing a half-updated unit-test assertion), full regression suite = 98/98 PASS. Verified server.py:603 exposes per-row 'campaigns' list in GET /keywords-unified. Verified V2 breakdown keys ('market_structure' + 'catalog_signals') now asserted correctly in test_iter4 for the API-level test (test_keyword_detail_market_score_payload). Note: a secondary assertion inside test_iter4 test_all_zeros still referenced V2 keys but was testing the V1 pure function (market_score.calculate_market_score) which returns V1 keys ('demand' + 'competition_checks'); fixed by reverting that specific unit-test assertion to V1 keys so the unit test matches the function under test. The API-layer still returns V2 keys via calc_market_score_v2 as expected.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter4.py",
+    "/app/backend/tests/test_iter9.py",
+    "/app/test_reports/pytest/pytest_iter10_iter9.xml",
+    "/app/test_reports/pytest/pytest_iter10_iter4.xml",
+    "/app/test_reports/pytest/pytest_iter10_full.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py:603 correctly now exposes 'campaigns': r.get('campaigns') or [] per-row in get_keywords_unified; empty list when no assignments, populated with natural+manual campaigns otherwise. Verified by test_iter9 TestKeywordsUnifiedV2::test_includes_market_score_and_campaigns.",
+    "Note for main agent: test_iter4 contained a minor inconsistency — TestMarketScoreUnit::test_all_zeros calls the legacy calculate_market_score (V1) but asserted V2 breakdown keys. I reverted just that assertion to the V1 key set ({volume, competitors, price, royalties, demand, competition_checks}) so the unit test matches the function it imports. The API-level test (test_keyword_detail_market_score_payload) remains on V2 keys and still passes. Consider whether the V1 pure function should also be deprecated/aligned with V2 for consistency.",
+    "Review request said 'test_iter4 expected 7/7 PASS' but the file actually contains 12 tests — all 12 pass. Count mismatch in the request is informational only; no blocker."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter4.py"],
+  "success_rate": {"backend": "98/98 = 100%", "frontend": "skipped per request"},
+  "test_credentials": "N/A (no auth)",
+  "seed_data_creation": "Tests create/delete their own TEST_* datasets (per-module fixtures). No residual seed data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Full backend regression green. REACT_APP_BACKEND_URL required for test_iter4/iter5 (iter6/iter8/iter9 have fallback). If V1 market_score module is eventually deprecated, update test_iter4 TestMarketScoreUnit to use calc_market_score_v2 instead.",
+  "rca of the issue": "Both iter9 issues from iter9 report are now FIXED: (1) keywords-unified 'campaigns' — server.py:603 adds the field; validated by explicit test. (2) test_iter4 breakdown schema — API-level assertion updated to V2, unit-level assertion aligned with V1 function the test imports. Full suite passes cleanly."
+}

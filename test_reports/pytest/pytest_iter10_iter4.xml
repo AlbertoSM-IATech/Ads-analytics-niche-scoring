@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="12" time="0.783" timestamp="2026-04-24T08:26:15.911761+00:00" hostname="agent-env-c65fbd88-56ef-4d81-b946-32fa68065431"><testcase classname="backend.tests.test_iter4.TestMarketScoreUnit" name="test_all_zeros" time="0.001"><failure message="AssertionError: assert {'competition...es', 'volume'} == {'catalog_sig...es', 'volume'}&#10;  &#10;  Extra items in the left set:&#10;  'demand'&#10;  'competition_checks'&#10;  Extra items in the right set:&#10;  'market_structure'&#10;  'catalog_signals'...&#10;  &#10;  ...Full output truncated (12 lines hidden), use '-vv' to show">backend/tests/test_iter4.py:51: in test_all_zeros
+    assert set(ms["breakdown"].keys()) == {"volume", "competitors", "price",
+E   AssertionError: assert {'competition...es', 'volume'} == {'catalog_sig...es', 'volume'}
+E     
+E     Extra items in the left set:
+E     'demand'
+E     'competition_checks'
+E     Extra items in the right set:
+E     'market_structure'
+E     'catalog_signals'...
+E     
+E     ...Full output truncated (12 lines hidden), use '-vv' to show</failure></testcase><testcase classname="backend.tests.test_iter4.TestMarketScoreUnit" name="test_strong_niche" time="0.000" /><testcase classname="backend.tests.test_iter4.TestMarketScoreUnit" name="test_score_increases_with_volume" time="0.000" /><testcase classname="backend.tests.test_iter4.TestMarketScoreUnit" name="test_score_increases_with_demand_and_competition_checks" time="0.000" /><testcase classname="backend.tests.test_iter4.TestMarketScoreUnit" name="test_label_bands" time="0.000" /><testcase classname="backend.tests.test_iter4.TestAcosSinVentaUnit" name="test_formula" time="0.000" /><testcase classname="backend.tests.test_iter4.TestAcosSinVentaUnit" name="test_none_when_no_sales" time="0.000" /><testcase classname="backend.tests.test_iter4.TestNicheFieldsPersistence" name="test_put_keyword_with_niche_fields" time="0.294" /><testcase classname="backend.tests.test_iter4.TestNicheFieldsPersistence" name="test_keyword_detail_market_score_payload" time="0.044" /><testcase classname="backend.tests.test_iter4.TestAutoSpend" name="test_auto_spend_overwrites_spend" time="0.134" /><testcase classname="backend.tests.test_iter4.TestAutoSpend" name="test_no_auto_spend_keeps_spend" time="0.131" /><testcase classname="backend.tests.test_iter4.TestAcosSinVentaInUnified" name="test_acos_sin_venta_in_row" time="0.086" /></testsuite></testsuites>
