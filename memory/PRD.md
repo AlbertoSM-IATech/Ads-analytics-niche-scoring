@@ -80,3 +80,15 @@
 - **Campaign Plans CRUD** en `/plans`: crear/editar/borrar planes agrupando keywords con fase (Lanzamiento/Dominio/Beneficio), ACoS objetivo, presupuesto diario y notas. Tarjetas con resumen agregado y `phase_target_acos` = PE × {1.7 / 1.2 / 0.5}.
 - **Export de keywords negativas** en formato Amazon Bulk Sheet (`GET /datasets/{id}/export/negatives`) para subir directamente a Seller Central. Botón en /keywords.
 - **Testing**: 65/65 backend (16 nuevos) + frontend de simulación, plans y export validado.
+
+## Update 2026-04-22 (iter 6)
+- **Autopilot por fase**: selector Lanzamiento / Dominio / Beneficio con multiplicadores 1.7× / 1.2× / 0.5× sobre el ACoS de Equilibrio. Reglas adaptadas por fase:
+  - Lanzamiento: pausa sólo con ≥12 clicks sin venta, escala +20% con tracción.
+  - Dominio: pausa con ≥8 clicks sin venta, escala +15% con ROAS ≥4.
+  - Beneficio: pausa con ≥5 clicks sin venta, escala +10% con ROAS ≥5.
+- **Helium10 / Publisher Rocket import** (`POST /datasets/{id}/import-niche`): carga CSV/XLSX y auto-rellena volumen y competidores por término (match insensible a mayúsculas/minúsculas).
+- **Distribución por estado** (PieChart) añadida al Dashboard.
+- **Comparación de datasets** (`GET /compare/{other_id}`): KPI delta + 30 top movers por |Δspend|+|Δsales|. Ruta `/compare`.
+- **Export Bulk Sheet autopilot** (`/export/autopilot?phase=...`) con filas Pause/Increase bid listas para Seller Central.
+- **Edición inline ampliada**: `campaign` y `match_type` ahora editables en la tabla; persistencia vía PUT `/keyword`.
+- **Bug crítico corregido**: upsert_keyword reemplazaba todo el sub-documento `overrides.{term}`; ahora usa `$set` con claves con punto para MERGE partial de cada campo. 78/78 backend tests OK.
