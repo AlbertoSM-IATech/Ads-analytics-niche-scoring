@@ -92,3 +92,14 @@
 - **Export Bulk Sheet autopilot** (`/export/autopilot?phase=...`) con filas Pause/Increase bid listas para Seller Central.
 - **Edición inline ampliada**: `campaign` y `match_type` ahora editables en la tabla; persistencia vía PUT `/keyword`.
 - **Bug crítico corregido**: upsert_keyword reemplazaba todo el sub-documento `overrides.{term}`; ahora usa `$set` con claves con punto para MERGE partial de cada campo. 78/78 backend tests OK.
+
+## Update 2026-04-22 (iter 7) — Simplificación + V2
+- **Sidebar colapsable** (persiste en localStorage); arquitectura reducida a **Dashboard, Libro, Importar, Campañas, Keywords**. Eliminadas: Planes, Historial, Comparar, Autopilot standalone, Niche (Autopilot ahora vive dentro del panel de keyword).
+- **Fase global del libro** (Lanzamiento / Dominio / Beneficio) + botón "Restaurar estándar" en `/book`. Se muestra como badge en el Header.
+- **KeywordDetailSheet redimensionable** con drag handle en el borde izquierdo (persistido). Incluye:
+  - **Panel Autopilot por keyword** usando la fase del libro por defecto (con override).
+  - **Multi-campaña**: reemplazado input de texto por selector de campañas existentes + chips removibles.
+- **Criterios por Mercado (V2)**: modal accesible desde el Header (ícono ⚙︎) con defaults exactos del repo original (ES/US/UK/DE/FR/IT/MX/CA/JP/AU). Algoritmo V2 continuo portado a `market_score_v2.py`.
+- **Backup JSON**: export desde `/backup` y restore vía `/restore` (icono en el Header).
+- **IA recalibrada**: prompt del sistema incluye ahora fase global + criterios de mercado activo.
+- **Testing**: **98/98 backend OK** + frontend todos los data-testid verificados. Bug fix: `keywords-unified` ahora devuelve `campaigns: []` por fila.
