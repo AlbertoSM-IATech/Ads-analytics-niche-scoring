@@ -1,51 +1,58 @@
 import { NavLink } from "react-router-dom";
 import {
-  LayoutDashboard, Upload, Megaphone, Target, BookOpen, Sparkles, History, Compass, ListTree, Plane, GitCompare,
+  LayoutDashboard, Upload, Megaphone, Target, BookOpen, Zap,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
+import { useState, useEffect } from "react";
 
 const LOGO_URL = "https://customer-assets.emergentagent.com/job_amazon-ads-importer/artifacts/lak8zra2_Artboard%2026%402x.png";
 
 const items = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, testid: "nav-dashboard" },
+  { to: "/book", label: "Libro", icon: BookOpen, testid: "nav-book" },
   { to: "/import", label: "Importar", icon: Upload, testid: "nav-import" },
-  { to: "/book", label: "Mi libro", icon: BookOpen, testid: "nav-book" },
-  { to: "/keywords", label: "Keywords", icon: Target, testid: "nav-keywords" },
-  { to: "/niche", label: "Estudio de nicho", icon: Compass, testid: "nav-niche" },
-  { to: "/plans", label: "Planes", icon: ListTree, testid: "nav-plans" },
-  { to: "/autopilot", label: "Piloto", icon: Plane, testid: "nav-autopilot" },
-  { to: "/compare", label: "Comparar", icon: GitCompare, testid: "nav-compare" },
   { to: "/campaigns", label: "Campañas", icon: Megaphone, testid: "nav-campaigns" },
-  { to: "/ai", label: "IA", icon: Sparkles, testid: "nav-ai" },
-  { to: "/history", label: "Historial", icon: History, testid: "nav-history" },
+  { to: "/keywords", label: "Keywords", icon: Target, testid: "nav-keywords" },
 ];
 
 export default function Sidebar() {
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem("sidebar_collapsed") === "1"
+  );
+  useEffect(() => {
+    localStorage.setItem("sidebar_collapsed", collapsed ? "1" : "0");
+  }, [collapsed]);
+
   return (
     <aside
-      className="w-[232px] shrink-0 h-screen sticky top-0 flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border"
+      className={`shrink-0 h-screen sticky top-0 flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-[width] duration-200 ${
+        collapsed ? "w-[64px]" : "w-[232px]"
+      }`}
       data-testid="sidebar"
+      data-collapsed={collapsed ? "true" : "false"}
     >
-      <div className="h-[72px] flex items-center gap-2 px-5 border-b border-sidebar-border">
-        <img
-          src={LOGO_URL}
-          alt="Publify"
-          className="h-8 object-contain"
-          data-testid="publify-logo"
-        />
+      <div className="h-[72px] flex items-center gap-2 px-4 border-b border-sidebar-border justify-between">
+        {collapsed ? (
+          <div className="size-8 rounded bg-coral flex items-center justify-center mx-auto">
+            <Zap className="size-4 text-white" />
+          </div>
+        ) : (
+          <img src={LOGO_URL} alt="Publify" className="h-8 object-contain" data-testid="publify-logo" />
+        )}
       </div>
-      <div className="px-5 pt-5 pb-2 text-[10px] uppercase tracking-widest text-sidebar-muted font-semibold">
-        Módulos
-      </div>
-      <nav className="flex-1 px-3 space-y-0.5">
+
+      <nav className="flex-1 px-2 pt-4 space-y-0.5">
         {items.map(({ to, label, icon: Icon, testid }) => (
           <NavLink
             key={to}
             to={to}
             end={to === "/"}
             data-testid={testid}
+            title={collapsed ? label : undefined}
             className={({ isActive }) =>
               [
                 "group flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all",
+                collapsed ? "justify-center" : "",
                 "hover:bg-sidebar-accent hover:text-white",
                 isActive
                   ? "bg-coral text-white shadow-[0_4px_14px_-4px_rgba(251,146,60,0.6)] font-medium"
@@ -54,18 +61,19 @@ export default function Sidebar() {
             }
           >
             <Icon className="size-4 shrink-0" />
-            <span className="truncate">{label}</span>
+            {!collapsed && <span className="truncate">{label}</span>}
           </NavLink>
         ))}
       </nav>
-      <div className="p-4 border-t border-sidebar-border">
-        <div className="text-[10px] uppercase tracking-widest text-sidebar-muted">
-          Amazon Ads · v1.1
-        </div>
-        <div className="mt-1 font-heading text-sm font-semibold text-white">
-          Publify Analytics
-        </div>
-      </div>
+
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="m-3 h-8 rounded-md border border-sidebar-border text-sidebar-muted hover:text-white hover:border-coral flex items-center justify-center gap-1.5 text-xs"
+        data-testid="sidebar-toggle"
+        title={collapsed ? "Expandir" : "Colapsar"}
+      >
+        {collapsed ? <ChevronRight className="size-4" /> : <><ChevronLeft className="size-4" /> <span>Colapsar</span></>}
+      </button>
     </aside>
   );
 }

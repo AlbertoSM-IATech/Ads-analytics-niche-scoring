@@ -3,15 +3,10 @@ import KpiGrid from "../components/KpiGrid";
 import ChartsPanel from "../components/ChartsPanel";
 import AiPanel from "../components/AiPanel";
 import ImportZone from "../components/ImportZone";
-import HistoryPanel from "../components/HistoryPanel";
 import CampaignsTable from "../components/CampaignsTable";
 import BookInfoPanel from "../components/BookInfoPanel";
 import KeywordsUnified from "../components/KeywordsUnified";
 import DashboardBlocks from "../components/DashboardBlocks";
-import NicheStudy from "../components/NicheStudy";
-import CampaignPlans from "../components/CampaignPlans";
-import Autopilot from "../components/Autopilot";
-import CompareView from "../components/CompareView";
 import DistributionChart from "../components/DistributionChart";
 import { useData } from "../context/DataContext";
 import { Routes, Route, useLocation } from "react-router-dom";
@@ -61,15 +56,9 @@ function DashboardView() {
 
 const titleFor = (path) => {
   if (path.startsWith("/import")) return { t: "Importar datos", s: "Amazon Ads CSV/XLSX" };
-  if (path.startsWith("/book")) return { t: "Mi libro", s: "Economía y datos del libro" };
-  if (path.startsWith("/keywords")) return { t: "Keywords unificadas", s: "con ACoS del siguiente click" };
-  if (path.startsWith("/niche")) return { t: "Estudio de nicho", s: "Market Score 0-100 por keyword" };
-  if (path.startsWith("/plans")) return { t: "Planes de campaña", s: "agrupación por fase y presupuesto" };
-  if (path.startsWith("/autopilot")) return { t: "Piloto automático", s: "acciones sugeridas por reglas" };
-  if (path.startsWith("/compare")) return { t: "Comparar datasets", s: "antes vs después" };
+  if (path.startsWith("/book")) return { t: "Libro", s: "Fase, economía e información" };
+  if (path.startsWith("/keywords")) return { t: "Keywords", s: "edición inline + panel lateral" };
   if (path.startsWith("/campaigns")) return { t: "Campañas", s: "análisis agregado" };
-  if (path.startsWith("/ai")) return { t: "IA", s: "recomendaciones con Claude" };
-  if (path.startsWith("/history")) return { t: "Historial", s: "datasets importados" };
   return { t: "Dashboard", s: "resumen de rendimiento" };
 };
 
@@ -90,30 +79,9 @@ export default function Dashboard() {
             element={active ? <KeywordsUnified datasetId={active.id} /> : <Empty msg="Importa un CSV para ver tus keywords." />}
           />
           <Route
-            path="/niche"
-            element={active ? <NicheStudy datasetId={active.id} /> : <Empty msg="Importa un CSV para empezar el estudio de nicho." />}
-          />
-          <Route
-            path="/plans"
-            element={active ? <CampaignPlans datasetId={active.id} /> : <Empty msg="Importa un CSV para crear planes." />}
-          />
-          <Route
-            path="/autopilot"
-            element={active ? <Autopilot datasetId={active.id} /> : <Empty msg="Importa un CSV para activar el piloto automático." />}
-          />
-          <Route
-            path="/compare"
-            element={active ? <CompareView /> : <Empty msg="Importa al menos 2 datasets para compararlos." />}
-          />
-          <Route
             path="/campaigns"
             element={active ? <CampaignsTable datasetId={active.id} /> : <Empty msg="Importa un CSV para ver campañas." />}
           />
-          <Route
-            path="/ai"
-            element={active ? <AiPanel datasetId={active.id} initialRecs={active.ai_recommendations} /> : <Empty msg="Importa un CSV para generar recomendaciones." />}
-          />
-          <Route path="/history" element={<HistoryPanel />} />
         </Routes>
       </div>
     </div>

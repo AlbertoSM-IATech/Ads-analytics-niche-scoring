@@ -14,11 +14,11 @@ import {
 } from "./ui/select";
 import {
   Camera, Save, Trash2, Loader2, BookOpen, Megaphone, Sparkles, AlertCircle,
-  MousePointerClick, ShoppingBag, TrendingUp,
+  MousePointerClick, ShoppingBag, TrendingUp, Plane, PauseCircle, Shield, HelpCircle,
 } from "lucide-react";
 import {
   getKeywordDetail, snapshotAll, getSnapshots,
-  upsertKeyword, deleteKeywordOverride,
+  upsertKeyword, deleteKeywordOverride, getCampaignsList, getAutopilot,
 } from "../lib/api";
 import { useData } from "../context/DataContext";
 import { toast } from "sonner";
@@ -100,6 +100,18 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState(initialTab);
 
+  // Resize state
+  const [width, setWidth] = useState(
+    () => Number(localStorage.getItem("kwsheet_width")) || 640
+  );
+  const [dragging, setDragging] = useState(false);
+
+  // Campaigns list + autopilot per-keyword
+  const [allCampaigns, setAllCampaigns] = useState([]);
+  const [autopilotPhase, setAutopilotPhase] = useState(null); // null → use book phase
+  const [apRec, setApRec] = useState(null);
+  const [apLoading, setApLoading] = useState(false);
+
   // Ads fields
   const [clicks, setClicks] = useState(0);
   const [impressions, setImpressions] = useState(0);
@@ -109,7 +121,7 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
   const [orders, setOrders] = useState(0);
   const [sales, setSales] = useState(0);
   const [autoSales, setAutoSales] = useState(true);
-  const [campaign, setCampaign] = useState("");
+  const [campaigns, setCampaigns] = useState([]);
   const [matchType, setMatchType] = useState("broad");
   const [adType, setAdType] = useState("SP");
   const [notes, setNotes] = useState("");
@@ -140,7 +152,7 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
         setSpend(m.spend || 0);
         setOrders(Math.round(m.orders || 0));
         setSales(m.sales || 0);
-        setCampaign(m.campaign || "");
+        setCampaigns(Array.isArray(m.campaigns) ? m.campaigns : (m.campaign ? [m.campaign] : []));
         setMatchType(m.match_type || "broad");
         setAdType(m.ad_type || "SP");
         setNotes(m.notes || "");
@@ -168,6 +180,26 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
       })
       .finally(() => setLoading(false));
   }, [open, term, active]);
+
+  // Load campaigns list + autopilot when open
+  useEffect(() => {
+    if (!open || !active) return;
+    getCampaignsList(active.id).then((r) => setAllCampaigns(r.data || [])).catch(() => {});
+  }, [open, active]);
+
+  useEffect(() => {
+    if (!open || !active || !term) return;
+    const phase = autopilotPhase || active.phase || "dominio";
+    setApLoading(true);
+    getAutopilot(active.id, phase)
+      .then((r) => {
+        const all = [...(r.data.actions?.pause || []), ...(r.data.actions?.scale || []),
+                     ...(r.data.actions?.hold || []), ...(r.data.actions?.investigate || [])];
+        const mine = all.find((x) => x.term === term);
+        setApRec(mine ? { ...mine, phase } : { action: "hold", rationale: "Sin datos suficientes", phase });
+      })
+      .finally(() => setApLoading(false));
+  }, [open, active, term, autopilotPhase]);
 
   // Auto-calc spend from clicks × CPC
   useEffect(() => {
@@ -209,7 +241,8 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
         orders: Number(orders) || 0,
         sales: Number(sales) || 0,
         auto_spend: autoSpend,
-        campaign: campaign || null,
+        campaigns: campaigns,
+        campaign: campaigns[0] || null,
         match_type: matchType || null,
         ad_type: adType || null,
         notes,
@@ -251,7 +284,36 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto" data-testid="kw-detail-sheet">
+      <SheetContent
+        side="right"
+        className="p-0 overflow-hidden"
+        style={{ width: `${width}px`, maxWidth: "95vw" }}
+        data-testid="kw-detail-sheet"
+      >
+        {/* Resize handle on the left edge */}
+        <div
+          className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize hover:bg-coral/60 z-50"
+          data-testid="resize-handle"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setDragging(true);
+            const startX = e.clientX;
+            const startW = width;
+            const handleMove = (ev) => {
+              const next = Math.min(Math.max(420, startW + (startX - ev.clientX)), window.innerWidth * 0.95);
+              setWidth(next);
+            };
+            const handleUp = () => {
+              setDragging(false);
+              localStorage.setItem("kwsheet_width", String(width));
+              document.removeEventListener("mousemove", handleMove);
+              document.removeEventListener("mouseup", handleUp);
+            };
+            document.addEventListener("mousemove", handleMove);
+            document.addEventListener("mouseup", handleUp);
+          }}
+        />
+        <div className="h-full overflow-y-auto px-6 py-5">
         <SheetHeader>
           <div className="flex items-center gap-2 flex-wrap">
             <SheetTitle className="font-heading text-xl">{term}</SheetTitle>
@@ -438,6 +500,52 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
                 </div>
               </div>
 
+              {/* Autopilot per-keyword (uses book phase by default) */}
+              <div className="border border-border rounded-md bg-card p-3 space-y-2" data-testid="kw-autopilot-card">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Plane className="size-4 text-coral" />
+                    <h3 className="text-sm font-semibold">Recomendación del Piloto</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-[10px] text-muted-foreground">Fase</Label>
+                    <Select
+                      value={autopilotPhase || (active?.phase || "dominio")}
+                      onValueChange={(v) => setAutopilotPhase(v)}
+                    >
+                      <SelectTrigger className="h-7 w-[140px] rounded-md text-xs" data-testid="kw-autopilot-phase">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="lanzamiento">Lanzamiento</SelectItem>
+                        <SelectItem value="dominio">Dominio</SelectItem>
+                        <SelectItem value="beneficio">Beneficio</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {apLoading ? (
+                  <div className="text-xs text-muted-foreground flex items-center gap-2">
+                    <Loader2 className="size-3 animate-spin" /> Calculando…
+                  </div>
+                ) : apRec ? (
+                  <div className="flex items-start gap-2" data-testid="kw-autopilot-recommendation">
+                    {apRec.action === "pause" && <PauseCircle className="size-4 text-destructive mt-0.5" />}
+                    {apRec.action === "scale" && <TrendingUp className="size-4 text-green-600 mt-0.5" />}
+                    {apRec.action === "hold" && <Shield className="size-4 text-blue-600 mt-0.5" />}
+                    {apRec.action === "investigate" && <HelpCircle className="size-4 text-amber-500 mt-0.5" />}
+                    <div className="text-xs flex-1">
+                      <div className="font-semibold capitalize">
+                        {apRec.action === "pause" ? "Pausar" :
+                         apRec.action === "scale" ? `Escalar${apRec.bid_delta_pct ? ` (${apRec.bid_delta_pct > 0 ? "+" : ""}${apRec.bid_delta_pct}%)` : ""}` :
+                         apRec.action === "hold" ? "Mantener" : "Observar"}
+                      </div>
+                      <div className="text-muted-foreground">{apRec.rationale}</div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
               {/* Simulation card: +1 click generating a sale */}
               {detail?.simulation && (
                 <div className="border border-coral/30 bg-coral/5 rounded-md p-4 space-y-2" data-testid="simulation-card">
@@ -578,11 +686,7 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
                     <Input type="number" min={0} step={0.01} value={sales} onChange={(e) => { setAutoSales(false); setSales(e.target.value); }} className="rounded-md mt-1 num" data-testid="edit-sales" />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label className="text-xs">Campaña</Label>
-                    <Input value={campaign} onChange={(e) => setCampaign(e.target.value)} className="rounded-md mt-1" data-testid="edit-campaign" />
-                  </div>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs">Match</Label>
                     <Select value={matchType} onValueChange={setMatchType}>
@@ -608,6 +712,34 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
                   </div>
                 </div>
                 <div>
+                  <Label className="text-xs">Campañas asignadas</Label>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5" data-testid="kw-campaigns">
+                    {campaigns.map((c) => (
+                      <Badge key={c} variant="outline" className="rounded-md gap-1 pr-1">
+                        <span className="truncate max-w-[200px]">{c}</span>
+                        <button
+                          onClick={() => setCampaigns(campaigns.filter((x) => x !== c))}
+                          className="hover:text-destructive ml-1"
+                          data-testid={`remove-camp-${c.slice(0,20)}`}
+                        >×</button>
+                      </Badge>
+                    ))}
+                    {campaigns.length === 0 && (
+                      <span className="text-xs text-muted-foreground italic">Sin campañas asignadas</span>
+                    )}
+                  </div>
+                  <Select value="" onValueChange={(v) => { if (v && !campaigns.includes(v)) setCampaigns([...campaigns, v]); }}>
+                    <SelectTrigger className="rounded-md mt-2" data-testid="edit-campaign-select">
+                      <SelectValue placeholder={allCampaigns.length === 0 ? "No hay campañas (crea una primero)" : "Añadir campaña existente…"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allCampaigns.filter((c) => !campaigns.includes(c)).map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label className="text-xs">Notas</Label>
                   <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="rounded-md mt-1" rows={2} data-testid="edit-notes" />
                 </div>
@@ -629,6 +761,7 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
             {saving ? <Loader2 className="size-4 animate-spin mr-2" /> : <Save className="size-4 mr-2" />}
             Guardar cambios
           </Button>
+        </div>
         </div>
       </SheetContent>
     </Sheet>

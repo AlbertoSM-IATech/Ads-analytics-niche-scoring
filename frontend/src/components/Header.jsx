@@ -1,14 +1,21 @@
+import { useState } from "react";
 import { useData } from "../context/DataContext";
 import { MARKETPLACES, getMarketplace, REPORT_LABELS } from "../lib/format";
-import { Sun, Moon } from "lucide-react";
+import { Sun, Moon, Settings, HardDriveDownload } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "./ui/select";
 import { Button } from "./ui/button";
+import MarketCriteriaModal from "./MarketCriteriaModal";
+import BackupModal from "./BackupModal";
+
+const PHASE_LABEL = { lanzamiento: "Lanzamiento", dominio: "Dominio", beneficio: "Beneficio" };
 
 export default function Header({ title, subtitle }) {
   const { marketplace, setMarketplace, theme, setTheme, active } = useData();
   const mp = getMarketplace(marketplace);
+  const [mcOpen, setMcOpen] = useState(false);
+  const [bkOpen, setBkOpen] = useState(false);
 
   return (
     <header
@@ -16,24 +23,26 @@ export default function Header({ title, subtitle }) {
       data-testid="header"
     >
       <div className="flex flex-col">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <h1 className="font-heading text-xl font-semibold tracking-tight">{title}</h1>
           {active && (
-            <span className="badge-pill bg-coral-50 text-coral-700 border-coral-200 dark:bg-coral-500/10 dark:text-coral-400 dark:border-coral-500/30">
-              {REPORT_LABELS[active.report_type] || active.report_type} · {active.ad_type}
-            </span>
+            <>
+              <span className="badge-pill bg-coral-50 text-coral-700 border-coral-200 dark:bg-coral-500/10 dark:text-coral-400 dark:border-coral-500/30">
+                {REPORT_LABELS[active.report_type] || active.report_type} · {active.ad_type}
+              </span>
+              {active.phase && (
+                <span className="badge-pill bg-muted text-foreground border-border" data-testid="header-phase-badge">
+                  Fase: {PHASE_LABEL[active.phase] || active.phase}
+                </span>
+              )}
+            </>
           )}
         </div>
-        {subtitle && (
-          <span className="text-xs text-muted-foreground">{subtitle}</span>
-        )}
+        {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
       </div>
       <div className="flex items-center gap-2">
         <Select value={marketplace} onValueChange={setMarketplace}>
-          <SelectTrigger
-            className="w-[200px] h-10 rounded-md bg-card"
-            data-testid="marketplace-selector"
-          >
+          <SelectTrigger className="w-[200px] h-10 rounded-md bg-card" data-testid="marketplace-selector">
             <SelectValue>
               <span className="flex items-center gap-2">
                 <span className="text-base">{mp.flag}</span>
@@ -54,8 +63,27 @@ export default function Header({ title, subtitle }) {
           </SelectContent>
         </Select>
         <Button
-          variant="outline"
-          size="icon"
+          variant="outline" size="icon"
+          className="h-10 w-10 rounded-md"
+          onClick={() => setMcOpen(true)}
+          disabled={!active}
+          data-testid="open-market-criteria"
+          title="Criterios por mercado"
+        >
+          <Settings className="size-4" />
+        </Button>
+        <Button
+          variant="outline" size="icon"
+          className="h-10 w-10 rounded-md"
+          onClick={() => setBkOpen(true)}
+          disabled={!active}
+          data-testid="open-backup"
+          title="Backup"
+        >
+          <HardDriveDownload className="size-4" />
+        </Button>
+        <Button
+          variant="outline" size="icon"
           className="h-10 w-10 rounded-md"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           data-testid="theme-toggle"
@@ -63,6 +91,8 @@ export default function Header({ title, subtitle }) {
           {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
         </Button>
       </div>
+      <MarketCriteriaModal open={mcOpen} onOpenChange={setMcOpen} />
+      <BackupModal open={bkOpen} onOpenChange={setBkOpen} />
     </header>
   );
 }

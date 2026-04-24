@@ -19,44 +19,47 @@ export const listDatasets = (marketplace) =>
 export const getDataset = (id) => api.get(`/datasets/${id}`);
 export const deleteDataset = (id) => api.delete(`/datasets/${id}`);
 export const getCampaigns = (id) => api.get(`/datasets/${id}/campaigns`);
+export const getCampaignsList = (id) => api.get(`/datasets/${id}/campaigns-list`);
 export const getSearchTerms = (id) => api.get(`/datasets/${id}/search-terms`);
 export const getTimeseries = (id) => api.get(`/datasets/${id}/timeseries`);
 export const getAiRecs = (id) => api.post(`/datasets/${id}/ai-recommendations`);
 export const getKeywordsUnified = (id) => api.get(`/datasets/${id}/keywords-unified`);
 export const updateBook = (id, payload) => api.put(`/datasets/${id}/book`, payload);
+export const setPhase = (id, phase) => api.put(`/datasets/${id}/phase`, { phase });
 
-// Keywords overrides (inline edit / manual add)
 export const upsertKeyword = (id, payload) => api.put(`/datasets/${id}/keyword`, payload);
 export const deleteKeywordOverride = (id, term) =>
   api.delete(`/datasets/${id}/keyword/${encodeURIComponent(term)}`);
 
-// Campaign wizard
 export const createCampaign = (id, payload) => api.post(`/datasets/${id}/campaign`, payload);
 
-// Snapshots & detail
 export const snapshotAll = (id) => api.post(`/datasets/${id}/snapshot-all`);
 export const getSnapshots = (id, term) =>
   api.get(`/datasets/${id}/snapshots/${encodeURIComponent(term)}`);
 export const getKeywordDetail = (id, term) =>
   api.get(`/datasets/${id}/keyword-detail`, { params: { term } });
 
-// Campaign plans
-export const listPlans = (id) => api.get(`/datasets/${id}/plans`);
-export const createPlan = (id, payload) => api.post(`/datasets/${id}/plans`, payload);
-export const updatePlan = (id, planId, payload) =>
-  api.put(`/datasets/${id}/plans/${planId}`, payload);
-export const deletePlan = (id, planId) =>
-  api.delete(`/datasets/${id}/plans/${planId}`);
-export const getPlanSummary = (id, planId) =>
-  api.get(`/datasets/${id}/plans/${planId}/summary`);
+export const getMarketCriteria = (id, mp) =>
+  api.get(`/datasets/${id}/market-criteria/${mp}`);
+export const putMarketCriteria = (id, mp, payload) =>
+  api.put(`/datasets/${id}/market-criteria/${mp}`, payload);
+export const resetMarketCriteria = (id, mp) =>
+  api.delete(`/datasets/${id}/market-criteria/${mp}`);
 
-export const exportNegativesUrl = (id, minClicks = 6) =>
-  `${API}/datasets/${id}/export/negatives?min_clicks=${minClicks}`;
+export const backupUrl = (id) => `${API}/datasets/${id}/backup`;
+export const restoreBackup = (id, file) => {
+  const fd = new FormData();
+  fd.append("file", file);
+  return api.post(`/datasets/${id}/restore`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
 
-// Autopilot + niche import + compare
 export const getAutopilot = (id, phase = "dominio") =>
   api.get(`/datasets/${id}/autopilot`, { params: { phase } });
 export const exportAutopilotUrl = (id) => `${API}/datasets/${id}/export/autopilot`;
+export const exportNegativesUrl = (id, minClicks = 6) =>
+  `${API}/datasets/${id}/export/negatives?min_clicks=${minClicks}`;
 export const importNiche = (id, file) => {
   const fd = new FormData();
   fd.append("file", file);
@@ -64,5 +67,3 @@ export const importNiche = (id, file) => {
     headers: { "Content-Type": "multipart/form-data" },
   });
 };
-export const compareDatasets = (id, otherId) =>
-  api.get(`/datasets/${id}/compare/${otherId}`);

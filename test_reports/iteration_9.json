@@ -1,0 +1,42 @@
+{
+  "summary": "Iter 7 backend+frontend tests. New iter9 suite: 18/19 PASS. Full regression (iter1-iter9): 96/98 PASS. Two real issues found: (1) backend GET /datasets/{id}/keywords-unified does not expose per-row 'campaigns' list (agg produces it but out_rows omits it). (2) test_iter4 expects V1 'demand' key in market_score_breakdown; V2 changed schema to 'market_structure' + 'catalog_signals' — regression test needs update. Frontend: sidebar (5 items + collapse localStorage='sidebar_collapsed'), /book phase section, restore-defaults-btn, market-criteria-modal, backup-modal, kw-detail-sheet (resize-handle, autopilot-card, autopilot-phase, autopilot-recommendation, edit-campaign-select, kw-campaigns) — ALL FOUND. Removed routes /plans /history /compare /autopilot /niche render DashboardView fallback with a console warning 'No routes matched' (expected per spec).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/datasets/{id}/keywords-unified", "issue": "Per-row 'campaigns' list (multi-campaign assignment) is produced by _merge_rows_with_overrides (server.py:158) but NOT copied into out_rows (server.py:600-631). Frontend KeywordDetailSheet expects kw-campaigns / edit-campaign-select to render this list. Currently works only when the sheet fetches keyword-detail individually; the unified table cannot pre-render chips."},
+      {"endpoint": "GET /api/datasets/{id}/keyword-detail", "issue": "market_score_breakdown no longer includes legacy 'demand' key (V2 uses 'market_structure' + 'catalog_signals'). Any client still reading 'demand' will break. Test file test_iter4.py test_keyword_detail_market_score_payload asserts 'demand' in breakdown and fails."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Remove legacy routes", "issue": "/plans /history /compare /autopilot /niche emit 10x 'No routes matched location' warnings per navigation instead of a clean 404/redirect. UX-wise fine (fallback renders Dashboard) but noisy in console.", "affected_selectors": []}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter9.py",
+    "/app/test_reports/pytest/pytest_iter9.xml",
+    "/app/test_reports/pytest/pytest_iter9_full.xml"
+  ],
+  "action_items": [
+    "server.py get_keywords_unified(): add 'campaigns': r.get('campaigns') or [] to each out_rows.append(...) (~line 630) so the unified table/sheet receives multi-campaign assignments.",
+    "Update /app/backend/tests/test_iter4.py::test_keyword_detail_market_score_payload: replace 'demand' assertion with 'market_structure' + 'catalog_signals' to match V2 breakdown schema.",
+    "Optional: add explicit <Route path='/plans|/history|/compare|/autopilot|/niche' redirect='/'/> in Dashboard.jsx to silence the 'No routes matched' warning or add a proper Navigate fallback."
+  ],
+  "critical_code_review_comments": [
+    "server.py:1114 put_market_criteria correctly uses dotted $set keys (market_criteria.{mp}.{k}) — merge semantics verified by test_put_partial_merge (2 sequential PUTs, idealVolume and idealPrice both persist).",
+    "server.py:1184 restore_dataset uses replace_one which is correct; it forces src['id']=dataset_id so the URL identity is preserved. Good.",
+    "server.py:600-631 get_keywords_unified omits 'campaigns' (the merged multi-campaign list) from the per-row output — see action item 1.",
+    "Sidebar.jsx:20,23 uses localStorage key 'sidebar_collapsed' (snake_case) — consistent and persisted across reloads.",
+    "BookInfoPanel.jsx:91-93 restoreDefaults sets precio_libro=9.99, regalias_por_venta=3.5, phase='dominio' — matches iter7 spec; does not save until Guardar pressed (confirmed via window.confirm gate)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter9.py"],
+  "success_rate": {"backend": "96/98 = 98% (1 real gap: keywords-unified campaigns field; 1 legacy-schema test)", "frontend": "100% — all new Iter7 data-testid elements present and reachable"},
+  "test_credentials": "N/A (no auth)",
+  "seed_data_creation": "test_iter9 creates/deletes its own TEST_ITER9_<uuid> dataset (module-scoped). No persistent residual.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "When re-running backend suite, export REACT_APP_BACKEND_URL (test_iter4.py/test_iter5.py still require it; test_iter6/iter8/iter9 have a fallback). After main agent fixes keywords-unified to include 'campaigns', re-run: pytest /app/backend/tests/test_iter9.py::TestKeywordsUnifiedV2::test_includes_market_score_and_campaigns. Also re-run test_iter4.py::test_keyword_detail_market_score_payload after updating the asserted breakdown keys.",
+  "rca of the issue": "keywords-unified campaigns missing: _merge_rows_with_overrides() computes merged['campaigns'] = all_camps (server.py:158) but get_keywords_unified() builds out_rows via an explicit field list at server.py:600-631 that only copies 'campaign' (single) and forgets 'campaigns' (list). Fix: add \"campaigns\": r.get(\"campaigns\") or ([r.get(\"campaign\")] if r.get(\"campaign\") else []) to the dict."
+}
