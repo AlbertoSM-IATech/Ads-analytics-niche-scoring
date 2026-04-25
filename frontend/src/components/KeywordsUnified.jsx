@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { getKeywordsUnified, upsertKeyword, exportNegativesUrl } from "../lib/api";
+import { getKeywordsUnified, upsertKeyword, exportNegativesUrl, getCampaignsList } from "../lib/api";
 import { useData } from "../context/DataContext";
 import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
 import { fmtInt, fmtPct, fmtMoney, getMarketplace } from "../lib/format";
-import { ArrowDownUp, AlertCircle, Plus, MoreHorizontal, Check, X, Pencil, Download } from "lucide-react";
+import { ArrowDownUp, AlertCircle, Plus, MoreHorizontal, Check, X, Pencil, Download, Ban } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import KeywordDetailSheet from "./KeywordDetailSheet";
 import AddKeywordWizard from "./AddKeywordWizard";
 import AddCampaignWizard from "./AddCampaignWizard";
+import MultiCampaignCell from "./MultiCampaignCell";
 import { InfoTooltip } from "./InfoTooltip";
 import { toast } from "sonner";
 
@@ -25,7 +26,7 @@ const editableKeys = new Set(["clicks", "impressions", "cpc", "spend", "orders",
 
 const cols = [
   { k: "term", label: "Término" },
-  { k: "campaign", label: "Campaña" },
+  { k: "campaign", label: "Campañas" },
   { k: "match_type", label: "Match" },
   { k: "impressions", label: "Impr." },
   { k: "clicks", label: "Clicks" },
@@ -39,6 +40,7 @@ const cols = [
   { k: "acos_siguiente", label: "ACoS +1", tip: "acos_siguiente" },
   { k: "beneficio_ahora", label: "Beneficio", tip: "beneficio_ahora" },
   { k: "badge", label: "Estado" },
+  { k: "suggest_negative", label: "Neg.", tip: "suggest_negative" },
   { k: "_act", label: "" },
 ];
 
@@ -128,8 +130,10 @@ export default function KeywordsUnified({ datasetId }) {
   const sym = getMarketplace(marketplace).symbol;
   const location = useLocation();
   const [data, setData] = useState(null);
+  const [allCampaigns, setAllCampaigns] = useState([]);
   const [q, setQ] = useState("");
   const [filterBadge, setFilterBadge] = useState(location.state?.filterBadge || null);
+  const [onlyNegatives, setOnlyNegatives] = useState(false);
   const [sortKey, setSortKey] = useState("spend");
   const [sortDir, setSortDir] = useState("desc");
   const [selectedTerm, setSelectedTerm] = useState(null);
@@ -139,8 +143,12 @@ export default function KeywordsUnified({ datasetId }) {
 
   const load = async () => {
     if (!datasetId) return;
-    const r = await getKeywordsUnified(datasetId);
+    const [r, c] = await Promise.all([
+      getKeywordsUnified(datasetId),
+      getCampaignsList(datasetId).catch(() => ({ data: [] })),
+    ]);
     setData(r.data);
+    setAllCampaigns(Array.isArray(c.data) ? c.data : []);
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [datasetId, active?.book_economy?.precio_libro, active?.book_economy?.regalias_por_venta]);
@@ -153,6 +161,7 @@ export default function KeywordsUnified({ datasetId }) {
     if (!data) return [];
     let arr = data.rows.filter((r) => (r.term || "").toLowerCase().includes(q.toLowerCase()));
     if (filterBadge) arr = arr.filter((r) => r.badge === filterBadge);
+    if (onlyNegatives) arr = arr.filter((r) => r.suggest_negative);
     arr.sort((a, b) => {
       const av = a[sortKey] ?? 0; const bv = b[sortKey] ?? 0;
       if (typeof av === "number" || typeof bv === "number") {
@@ -163,7 +172,7 @@ export default function KeywordsUnified({ datasetId }) {
         : String(bv).localeCompare(String(av));
     });
     return arr;
-  }, [data, q, filterBadge, sortKey, sortDir]);
+  }, [data, q, filterBadge, onlyNegatives, sortKey, sortDir]);
 
   const toggleSort = (k) => {
     if (sortKey === k) setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -194,6 +203,21 @@ export default function KeywordsUnified({ datasetId }) {
       if (clicks && cpc) payload.spend = Number((clicks * cpc).toFixed(2));
       await upsertKeyword(datasetId, payload);
       toast.success(`${field} actualizado (gasto recalculado)`);
+      await load();
+      await loadActive(datasetId);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || e.message);
+    }
+  };
+
+  const saveCampaigns = async (term, arr) => {
+    try {
+      await upsertKeyword(datasetId, {
+        term,
+        campaigns: arr,
+        campaign: arr[0] || null,
+      });
+      toast.success(arr.length === 0 ? "Campañas eliminadas" : `${arr.length} campaña${arr.length === 1 ? "" : "s"} asignada${arr.length === 1 ? "" : "s"}`);
       await load();
       await loadActive(datasetId);
     } catch (e) {
@@ -233,6 +257,21 @@ export default function KeywordsUnified({ datasetId }) {
               <X className="size-3.5 mr-1" /> {BADGE_STYLES[filterBadge]?.label}
             </Button>
           )}
+          <Button
+            variant={onlyNegatives ? "default" : "outline"}
+            size="sm"
+            className={`rounded-md ${onlyNegatives ? "bg-red-600 hover:bg-red-500 text-white" : ""}`}
+            onClick={() => setOnlyNegatives((v) => !v)}
+            data-testid="filter-negatives-btn"
+          >
+            <Ban className="size-3.5 mr-1" />
+            {onlyNegatives ? "Mostrando negativas" : "Solo negativas"}
+            {data?.summary?.negativas > 0 && (
+              <span className={`ml-1.5 num text-[10px] px-1.5 rounded ${onlyNegatives ? "bg-white/20" : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400"}`}>
+                {data.summary.negativas}
+              </span>
+            )}
+          </Button>
         </div>
         <div className="flex items-center gap-3">
           {pe != null && (
@@ -280,19 +319,30 @@ export default function KeywordsUnified({ datasetId }) {
           <tbody>
             {rows.map((r, i) => {
               const b = BADGE_STYLES[r.badge] || BADGE_STYLES["sin-datos"];
+              const negative = !!r.suggest_negative;
               return (
-                <tr key={i} className={`border-t border-border hover:bg-muted/30 ${r.is_manual ? "bg-coral/5" : ""}`} data-testid={`kw-row-${i}`}>
+                <tr
+                  key={i}
+                  className={`border-t border-border hover:bg-muted/30 ${r.is_manual ? "bg-coral/5" : ""} ${negative ? "bg-red-50/60 dark:bg-red-500/5" : ""}`}
+                  data-testid={`kw-row-${i}`}
+                >
                   <td className="px-3 py-2 max-w-[240px]">
                     <button
                       onClick={() => openDetail(r.term)}
-                      className="text-left hover:text-coral font-medium truncate block w-full"
+                      className="text-left hover:text-coral font-medium truncate block w-full inline-flex items-center gap-1.5"
                       data-testid={`kw-term-${i}`}
                     >
-                      {r.term}
+                      {negative && <Ban className="size-3 text-red-600 shrink-0" data-testid={`neg-icon-${i}`} />}
+                      <span className="truncate">{r.term}</span>
                     </button>
                   </td>
                   <td className="px-3 py-2">
-                    <EditableText value={r.campaign} onSave={(v) => saveCell(r.term, "campaign", v)} testid={`edit-campaign-${i}`} placeholder="sin campaña" />
+                    <MultiCampaignCell
+                      campaigns={r.campaigns || (r.campaign ? [r.campaign] : [])}
+                      allCampaigns={allCampaigns}
+                      onSave={(arr) => saveCampaigns(r.term, arr)}
+                      testid={`edit-campaigns-${i}`}
+                    />
                   </td>
                   <td className="px-3 py-2">
                     <EditableText value={r.match_type} onSave={(v) => saveCell(r.term, "match_type", v)} testid={`edit-match-${i}`} placeholder="—" />
@@ -330,6 +380,19 @@ export default function KeywordsUnified({ datasetId }) {
                     <span className={`badge-pill ${b.cls}`} data-testid={`kw-badge-${i}`}>
                       {b.label}
                     </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    {negative ? (
+                      <span
+                        className="badge-pill bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/30 inline-flex items-center gap-1"
+                        title="Sugerida como keyword negativa: ≥6 clicks y 0 ventas"
+                        data-testid={`neg-badge-${i}`}
+                      >
+                        <Ban className="size-3" /> Sugerida
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/40 text-xs">—</span>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openDetail(r.term)} data-testid={`kw-detail-${i}`}>
