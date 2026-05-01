@@ -675,3 +675,8 @@ class TestIter3UnifiedSummary:
         # `summary.negativas` (if present) is orthogonal and MUST NOT be summed here.
         badge_total = sum(u["summary"][k] for k in BADGE_KEYS)
         assert badge_total == len(u["rows"])
+        # Complementary check: if negativas is present it must be a well-formed int
+        # bounded by the number of rows (a keyword can be negative candidate AND hold a badge).
+        if "negativas" in u["summary"]:
+            assert isinstance(u["summary"]["negativas"], int)
+            assert 0 <= u["summary"]["negativas"] <= len(u["rows"])
