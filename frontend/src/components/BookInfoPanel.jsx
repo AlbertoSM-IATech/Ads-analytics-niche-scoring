@@ -10,6 +10,7 @@ import { fmtPct, getMarketplace } from "../lib/format";
 import { toast } from "sonner";
 import { InfoTooltip } from "./InfoTooltip";
 import ScoreWeightsPanel from "./ScoreWeightsPanel";
+import BookEconomyKDP from "./BookEconomyKDP";
 
 const PHASES = [
   { key: "lanzamiento", label: "Lanzamiento", icon: Rocket, desc: "Visibilidad · más tolerancia", multKey: "mult_lanzamiento", tip: "lanzamiento" },
@@ -234,6 +235,8 @@ export default function BookInfoPanel() {
       </div>
 
       <ScoreWeightsPanel />
+
+      <BookEconomyKDP />
     </div>
   );
 }

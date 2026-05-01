@@ -50,6 +50,17 @@ class BookEconomy(BaseModel):
     mult_lanzamiento: float = 1.7
     mult_dominio: float = 1.2
     mult_beneficio: float = 0.5
+    # ---- KDP V2 fields (all optional; absence keeps legacy behaviour) ----
+    format_type: Optional[str] = None          # "EBOOK" | "PRINT"
+    book_format: Optional[str] = None          # "PAPERBACK" | "HARDCOVER"
+    interior_type: Optional[str] = None        # "BN" | "COLOR_PREMIUM" | "COLOR_STANDARD"
+    book_size: Optional[str] = None            # "SMALL" | "LARGE"
+    pages: Optional[int] = None
+    iva_type: Optional[float] = None           # 4 | 21 (only applied in ES)
+    royalty_rate_ebook: Optional[int] = None   # 70 | 35
+    tamano_mb: Optional[float] = None
+    cpc_referencia: Optional[float] = None
+    margen_objetivo_pct: Optional[float] = None
 
 
 class BookSettingsIn(BaseModel):
@@ -272,16 +283,36 @@ async def delete_dataset(dataset_id: str):
 
 @api.put("/datasets/{dataset_id}/book")
 async def update_book(dataset_id: str, payload: BookSettingsIn):
+    # Use exclude_none so legacy datasets don't gain a flood of null KDP fields.
     r = await db.datasets.update_one(
         {"id": dataset_id},
         {"$set": {
             "book_info": payload.info.model_dump(),
-            "book_economy": payload.economy.model_dump(),
+            "book_economy": payload.economy.model_dump(exclude_none=True),
         }},
     )
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Dataset no encontrado")
     return {"ok": True}
+
+
+@api.get("/datasets/{dataset_id}/economy-diagnosis")
+async def economy_diagnosis(dataset_id: str):
+    """Return the full KDP economy diagnosis for this dataset's book configuration.
+
+    Phase 1: this endpoint is read-only and DOES NOT modify the dataset document.
+    If the dataset has no KDP fields configured, returns mode='legacy' with
+    the basic acos_pe / cpc_max derived from precio_libro + regalias_por_venta.
+    """
+    from kdp_economy import compute_full_diagnosis
+    doc = await db.datasets.find_one(
+        {"id": dataset_id}, {"_id": 0, "book_economy": 1, "marketplace": 1}
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dataset no encontrado")
+    book_eco = doc.get("book_economy") or {}
+    mp = doc.get("marketplace") or "COM"
+    return compute_full_diagnosis(book_eco, mp)
 
 
 # ---- Keyword overrides (inline edit + manual add) ----

@@ -103,3 +103,30 @@
 - **Backup JSON**: export desde `/backup` y restore vía `/restore` (icono en el Header).
 - **IA recalibrada**: prompt del sistema incluye ahora fase global + criterios de mercado activo.
 - **Testing**: **98/98 backend OK** + frontend todos los data-testid verificados. Bug fix: `keywords-unified` ahora devuelve `campaigns: []` por fila.
+
+## Update 2026-05-01 (iter 8) — Pesos editables + Multi-campaña inline + Negativas
+- **Pesos del Market Score editables** (`/book`): los 6 bloques (volumen 26, competidores 34, precio 8, regalías 8, demanda 12, competencia 12) ahora son configurables. Score normalizado a 0-100 según la suma de pesos. Botones "default: X" y "Restaurar estándar". Endpoints: `GET|PUT|DELETE /api/datasets/{id}/score-weights`.
+- **Multi-campaña inline** en la tabla Keywords: nueva columna "Campañas" con popover de checkboxes + input "Nueva campaña…". Persistida como `campaigns: []` en `upsert_keyword`.
+- **Columna Negativas** en la tabla Keywords: badge rojo "Sugerida" (clicks≥6 + orders=0), icono 🚫 junto al término, fila tintada en rojo muy suave. Filtro toggle "Solo negativas" con contador.
+- **Summary extendido** en `/keywords-unified`: nueva clave `negativas` (ortogonal a las 4 categorías de badge). Test iter3 actualizado para reflejar que `negativas` no se suma a las badges.
+- Tests: 98/98 backend regresión OK + 61 nuevos (unit + compat fixture).
+
+## Update 2026-05-01 (iter 9) — Fase 1 Profit Navigator: Configuración económica KDP
+- **Nuevo módulo `/app/backend/kdp_economy.py`** (puro, sin DB):
+  - `MARKETPLACE_CONFIG` para 9 marketplaces (ES/COM/DE/FR/IT/UK/CA/AU/JP) con currency, symbol, iva_default_pct, royalty_threshold, region.
+  - Tablas de impresión completas (EU/COM/UK/CA/AU/JP) + recargo hardcover por región.
+  - Funciones: `calc_precio_sin_iva` (IVA solo en ES), `calc_delivery_cost` (eBook 70%), `calc_coste_impresion`, `calc_regalia_neta` (eBook/PRINT con threshold dinámico), `calc_acos_pe`, `calc_cpc_max_rentable`, `calc_clicks_pe_base`, `calc_tasa_conv_breakeven`, `beneficio_kdp`, `calc_pvp_minimo`, `diagnose` (risk + viability), `compute_full_diagnosis`.
+  - Normalización `us`→`COM` para marketplaces legacy lowercase.
+  - Scoring 50/40/10 corregido: ≥14→50, 13→35, 12→25, 11→15, 10→10 (no cero), <10→0.
+- **`BookEconomy` extendido** con 10 campos opcionales KDP (`format_type EBOOK|PRINT`, `book_format PAPERBACK|HARDCOVER`, `interior_type BN|COLOR_PREMIUM|COLOR_STANDARD`, `book_size`, `pages`, `iva_type`, `royalty_rate_ebook 70|35`, `tamano_mb`, `cpc_referencia`, `margen_objetivo_pct`). Compatibilidad legacy total garantizada.
+- **Nuevo endpoint `GET /api/datasets/{id}/economy-diagnosis`** (read-only). Devuelve `{mode: "legacy"|"kdp", marketplace, marketplace_config, inputs, outputs, diagnosis, notes}`. En modo legacy sólo calcula ACoS PE / CPC máx básicos.
+- **Nuevo sub-panel `BookEconomyKDP.jsx`** en `/book` con selector de marketplace KDP, formato (ebook/impreso), sub-tipo (tapa blanda/dura), interior, tamaño, páginas, IVA (sólo ES), CPC referencia, margen objetivo. Outputs en vivo: regalía neta, ACoS PE (=BACOS=break-even ACoS), CPC máx, clicks PE base, precio sin IVA, coste impresión, PVP mínimo + score económico + diagnóstico risk/viability.
+- **NO tocados en Fase 1** (garantizado por tests de regresión con fixtures pre-phase1): `keywords-unified`, `autopilot`, multiplicadores de fase, cálculo de beneficio visible en la tabla ADS, importador, recomendaciones.
+- **Testing**: **159/159 backend OK** (98 previos + 61 nuevos):
+  - 57 unit tests de fórmulas y scoring en `test_kdp_economy.py`.
+  - 4 tests de compatibilidad en `test_phase1_compat.py` comparando byte-a-byte contra fixtures JSON del estado pre-fase1.
+
+## Próximas fases (planificadas, NO implementadas aún)
+- **Fase 2**: conectar economía KDP con reportes Ads (`cpc_real = spend/clicks`, clicks_pe por término, consumo_fase, beneficio_kdp en tabla).
+- **Fase 3**: motor de recomendaciones con output `Recommendation` (§17 del puente): WAIT_FOR_DATA, OBSERVE, LOWER_BID, HOLD, SCALE, MOVE_TO_EXACT, NEGATIVE_EXACT_CANDIDATE, NEGATIVE_PHRASE_CANDIDATE, REVIEW_CAMPAIGN, PAUSE_TARGET. Basado en consumo_pe/fase + recuperabilidad + relevancia manual (high/medium/low/unreviewed).
+- **Fase 4**: UI priorizada `/acciones` + exportaciones por tipo de acción.

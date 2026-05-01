@@ -1,0 +1,1094 @@
+{
+  "acos_equilibrio": 38.79907621247113,
+  "book_economy": {
+    "precio_libro": 12.99,
+    "regalias_por_venta": 5.04
+  },
+  "guias_fase": {
+    "beneficio": 19.399538106235564,
+    "dominio": 46.558891454965355,
+    "lanzamiento": 65.95842956120092
+  },
+  "key": "targeting",
+  "rows": [
+    {
+      "acos_actual": 25.931072818232348,
+      "acos_siguiente": 23.914661374348796,
+      "acos_siguiente_sin_venta": 26.79266259032796,
+      "ad_type": null,
+      "badge": "bajo-pe",
+      "beneficio_ahora": 79.95,
+      "beneficio_siguiente": 62.010000000000005,
+      "campaign": "UI_MergeA",
+      "campaigns": [],
+      "clicks": 30.0,
+      "competition_checks": 0,
+      "competitors": null,
+      "cpc": 0.93,
+      "ctr": 3.37,
+      "cvr": 20.0,
+      "demand_checks": 0,
+      "impressions": 891.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": null,
+      "kw_royalties": null,
+      "market_score": 45,
+      "match_type": "phrase",
+      "notes": "",
+      "orders": 6.0,
+      "sales": 107.94,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 34.0,
+          "ratio": 1.0
+        },
+        "market_structure": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.08,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 4.45,
+          "ratio": 0.56
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 0.0,
+          "ratio": 0.0
+        }
+      },
+      "score_label": "regular",
+      "search_volume": null,
+      "spend": 27.99,
+      "suggest_negative": false,
+      "term": "dash diet"
+    },
+    {
+      "acos_actual": 54.04157043879907,
+      "acos_siguiente": 41.28175519630485,
+      "acos_siguiente_sin_venta": 55.042340261739795,
+      "ad_type": "SP",
+      "badge": "en-perdida",
+      "beneficio_ahora": 17.91,
+      "beneficio_siguiente": 30.51,
+      "campaign": "campa\u00f1a de prueba",
+      "campaigns": [
+        "campa\u00f1a de prueba"
+      ],
+      "clicks": 54.0,
+      "competition_checks": 3,
+      "competitors": 100.0,
+      "cpc": 0.39,
+      "ctr": 4.5,
+      "cvr": 5.555555555555555,
+      "demand_checks": 6,
+      "impressions": 1200.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": 13.0,
+      "kw_royalties": 4.0,
+      "market_score": 93,
+      "match_type": "broad",
+      "notes": "",
+      "orders": 3.0,
+      "sales": 38.97,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 3,
+          "max": 12.0,
+          "points": 12.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 34.0,
+          "ratio": 1.0
+        },
+        "market_structure": {
+          "checks": 6,
+          "max": 12.0,
+          "points": 12.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.09,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 3.21,
+          "ratio": 0.4
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 26.0,
+          "ratio": 1.0
+        }
+      },
+      "score_label": "excelente",
+      "search_volume": 6000.0,
+      "spend": 21.06,
+      "suggest_negative": false,
+      "term": "mindfulness para principiantes"
+    },
+    {
+      "acos_actual": 28.349082823790994,
+      "acos_siguiente": 19.754680438992896,
+      "acos_siguiente_sin_venta": 34.018899388549194,
+      "ad_type": null,
+      "badge": "bajo-pe",
+      "beneficio_ahora": 12.889999999999999,
+      "beneficio_siguiente": 19.86,
+      "campaign": "MergeA",
+      "campaigns": [
+        "MergeA"
+      ],
+      "clicks": 5.0,
+      "competition_checks": 0,
+      "competitors": null,
+      "cpc": 1.02,
+      "ctr": 2.96,
+      "cvr": 20.0,
+      "demand_checks": 0,
+      "impressions": 169.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": null,
+      "kw_royalties": null,
+      "market_score": 45,
+      "match_type": null,
+      "notes": "",
+      "orders": 1.0,
+      "sales": 17.99,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 34.0,
+          "ratio": 1.0
+        },
+        "market_structure": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.08,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 4.45,
+          "ratio": 0.56
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 0.0,
+          "ratio": 0.0
+        }
+      },
+      "score_label": "regular",
+      "search_volume": null,
+      "spend": 5.1,
+      "suggest_negative": false,
+      "term": "dash cookbook"
+    },
+    {
+      "acos_actual": 5.906058921623124,
+      "acos_siguiente": 6.003531489111243,
+      "acos_siguiente_sin_venta": 7.087270705947748,
+      "ad_type": null,
+      "badge": "bajo-pe",
+      "beneficio_ahora": 67.71,
+      "beneficio_siguiente": 59.85,
+      "campaign": "MergeA",
+      "campaigns": [
+        "MergeA"
+      ],
+      "clicks": 5.0,
+      "competition_checks": 0,
+      "competitors": null,
+      "cpc": 0.85,
+      "ctr": 2.72,
+      "cvr": 80.0,
+      "demand_checks": 0,
+      "impressions": 184.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": null,
+      "kw_royalties": null,
+      "market_score": 45,
+      "match_type": null,
+      "notes": "",
+      "orders": 4.0,
+      "sales": 71.96,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 34.0,
+          "ratio": 1.0
+        },
+        "market_structure": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.08,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 4.45,
+          "ratio": 0.56
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 0.0,
+          "ratio": 0.0
+        }
+      },
+      "score_label": "regular",
+      "search_volume": null,
+      "spend": 4.25,
+      "suggest_negative": false,
+      "term": "high blood pressure cookbook"
+    },
+    {
+      "acos_actual": null,
+      "acos_siguiente": 21.016166281755197,
+      "acos_siguiente_sin_venta": null,
+      "ad_type": null,
+      "badge": "sin-datos",
+      "beneficio_ahora": -1.82,
+      "beneficio_siguiente": 10.26,
+      "campaign": "MergeA",
+      "campaigns": [
+        "MergeA"
+      ],
+      "clicks": 2.0,
+      "competition_checks": 0,
+      "competitors": null,
+      "cpc": 0.91,
+      "ctr": 7.41,
+      "cvr": 0.0,
+      "demand_checks": 0,
+      "impressions": 27.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": null,
+      "kw_royalties": null,
+      "market_score": 45,
+      "match_type": null,
+      "notes": "",
+      "orders": 0,
+      "sales": 0,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 34.0,
+          "ratio": 1.0
+        },
+        "market_structure": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.08,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 4.45,
+          "ratio": 0.56
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 0.0,
+          "ratio": 0.0
+        }
+      },
+      "score_label": "regular",
+      "search_volume": null,
+      "spend": 1.82,
+      "suggest_negative": false,
+      "term": "dash diet cookbook for beginners"
+    },
+    {
+      "acos_actual": null,
+      "acos_siguiente": 14.010777521170132,
+      "acos_siguiente_sin_venta": null,
+      "ad_type": null,
+      "badge": "sin-datos",
+      "beneficio_ahora": -0.91,
+      "beneficio_siguiente": 11.17,
+      "campaign": "MergeA",
+      "campaigns": [
+        "MergeA"
+      ],
+      "clicks": 1.0,
+      "competition_checks": 0,
+      "competitors": null,
+      "cpc": 0.91,
+      "ctr": 0.98,
+      "cvr": 0.0,
+      "demand_checks": 0,
+      "impressions": 102.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": null,
+      "kw_royalties": null,
+      "market_score": 45,
+      "match_type": null,
+      "notes": "",
+      "orders": 0,
+      "sales": 0,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 34.0,
+          "ratio": 1.0
+        },
+        "market_structure": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.08,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 4.45,
+          "ratio": 0.56
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 0.0,
+          "ratio": 0.0
+        }
+      },
+      "score_label": "regular",
+      "search_volume": null,
+      "spend": 0.91,
+      "suggest_negative": false,
+      "term": "dash diet books"
+    },
+    {
+      "acos_actual": null,
+      "acos_siguiente": 14.010777521170132,
+      "acos_siguiente_sin_venta": null,
+      "ad_type": null,
+      "badge": "sin-datos",
+      "beneficio_ahora": -0.91,
+      "beneficio_siguiente": 11.17,
+      "campaign": "MergeA",
+      "campaigns": [
+        "MergeA"
+      ],
+      "clicks": 1.0,
+      "competition_checks": 0,
+      "competitors": null,
+      "cpc": 0.91,
+      "ctr": 5.88,
+      "cvr": 0.0,
+      "demand_checks": 0,
+      "impressions": 17.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": null,
+      "kw_royalties": null,
+      "market_score": 45,
+      "match_type": null,
+      "notes": "",
+      "orders": 0,
+      "sales": 0,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 34.0,
+          "ratio": 1.0
+        },
+        "market_structure": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.08,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 4.45,
+          "ratio": 0.56
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 0.0,
+          "ratio": 0.0
+        }
+      },
+      "score_label": "regular",
+      "search_volume": null,
+      "spend": 0.91,
+      "suggest_negative": false,
+      "term": "dash diet for dummies"
+    },
+    {
+      "acos_actual": null,
+      "acos_siguiente": 14.010777521170132,
+      "acos_siguiente_sin_venta": null,
+      "ad_type": null,
+      "badge": "sin-datos",
+      "beneficio_ahora": -0.91,
+      "beneficio_siguiente": 11.17,
+      "campaign": "MergeA",
+      "campaigns": [
+        "MergeA"
+      ],
+      "clicks": 1.0,
+      "competition_checks": 0,
+      "competitors": null,
+      "cpc": 0.91,
+      "ctr": 8.33,
+      "cvr": 0.0,
+      "demand_checks": 0,
+      "impressions": 12.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": null,
+      "kw_royalties": null,
+      "market_score": 45,
+      "match_type": null,
+      "notes": "",
+      "orders": 0,
+      "sales": 0,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 34.0,
+          "ratio": 1.0
+        },
+        "market_structure": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.08,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 4.45,
+          "ratio": 0.56
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 0.0,
+          "ratio": 0.0
+        }
+      },
+      "score_label": "regular",
+      "search_volume": null,
+      "spend": 0.91,
+      "suggest_negative": false,
+      "term": "dash diet for high blood pressure"
+    },
+    {
+      "acos_actual": null,
+      "acos_siguiente": 0.0,
+      "acos_siguiente_sin_venta": null,
+      "ad_type": null,
+      "badge": "sin-datos",
+      "beneficio_ahora": 0,
+      "beneficio_siguiente": 12.99,
+      "campaign": "MergeA",
+      "campaigns": [
+        "MergeA"
+      ],
+      "clicks": 0,
+      "competition_checks": 0,
+      "competitors": null,
+      "cpc": 0,
+      "ctr": 0.0,
+      "cvr": null,
+      "demand_checks": 0,
+      "impressions": 14.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": null,
+      "kw_royalties": null,
+      "market_score": 45,
+      "match_type": null,
+      "notes": "",
+      "orders": 0,
+      "sales": 0,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 34.0,
+          "ratio": 1.0
+        },
+        "market_structure": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.08,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 4.45,
+          "ratio": 0.56
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 0.0,
+          "ratio": 0.0
+        }
+      },
+      "score_label": "regular",
+      "search_volume": null,
+      "spend": 0,
+      "suggest_negative": false,
+      "term": "dash diet cookbook for beginners 2025"
+    },
+    {
+      "acos_actual": null,
+      "acos_siguiente": 0.0,
+      "acos_siguiente_sin_venta": null,
+      "ad_type": null,
+      "badge": "sin-datos",
+      "beneficio_ahora": 0,
+      "beneficio_siguiente": 12.99,
+      "campaign": "MergeA",
+      "campaigns": [
+        "MergeA"
+      ],
+      "clicks": 0,
+      "competition_checks": 0,
+      "competitors": null,
+      "cpc": 0,
+      "ctr": 0.0,
+      "cvr": null,
+      "demand_checks": 0,
+      "impressions": 194.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": null,
+      "kw_royalties": null,
+      "market_score": 45,
+      "match_type": null,
+      "notes": "",
+      "orders": 0,
+      "sales": 0,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 34.0,
+          "ratio": 1.0
+        },
+        "market_structure": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.08,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 4.45,
+          "ratio": 0.56
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 0.0,
+          "ratio": 0.0
+        }
+      },
+      "score_label": "regular",
+      "search_volume": null,
+      "spend": 0,
+      "suggest_negative": false,
+      "term": "dash diet cookbook"
+    },
+    {
+      "acos_actual": null,
+      "acos_siguiente": 0.0,
+      "acos_siguiente_sin_venta": null,
+      "ad_type": null,
+      "badge": "sin-datos",
+      "beneficio_ahora": 0,
+      "beneficio_siguiente": 12.99,
+      "campaign": "MergeA",
+      "campaigns": [
+        "MergeA"
+      ],
+      "clicks": 0,
+      "competition_checks": 0,
+      "competitors": null,
+      "cpc": 0,
+      "ctr": 0.0,
+      "cvr": null,
+      "demand_checks": 0,
+      "impressions": 77.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": null,
+      "kw_royalties": null,
+      "market_score": 45,
+      "match_type": null,
+      "notes": "",
+      "orders": 0,
+      "sales": 0,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 34.0,
+          "ratio": 1.0
+        },
+        "market_structure": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.08,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 4.45,
+          "ratio": 0.56
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 0.0,
+          "ratio": 0.0
+        }
+      },
+      "score_label": "regular",
+      "search_volume": null,
+      "spend": 0,
+      "suggest_negative": false,
+      "term": "dash diet for beginners"
+    },
+    {
+      "acos_actual": null,
+      "acos_siguiente": 0.0,
+      "acos_siguiente_sin_venta": null,
+      "ad_type": null,
+      "badge": "sin-datos",
+      "beneficio_ahora": 0,
+      "beneficio_siguiente": 12.99,
+      "campaign": "MergeA",
+      "campaigns": [
+        "MergeA"
+      ],
+      "clicks": 0,
+      "competition_checks": 0,
+      "competitors": null,
+      "cpc": 0,
+      "ctr": 0,
+      "cvr": null,
+      "demand_checks": 0,
+      "impressions": 0.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": null,
+      "kw_royalties": null,
+      "market_score": 45,
+      "match_type": null,
+      "notes": "",
+      "orders": 0,
+      "sales": 0,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 34.0,
+          "ratio": 1.0
+        },
+        "market_structure": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.08,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 4.45,
+          "ratio": 0.56
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 0.0,
+          "ratio": 0.0
+        }
+      },
+      "score_label": "regular",
+      "search_volume": null,
+      "spend": 0,
+      "suggest_negative": false,
+      "term": "the dash diet"
+    },
+    {
+      "acos_actual": null,
+      "acos_siguiente": 0.0,
+      "acos_siguiente_sin_venta": null,
+      "ad_type": null,
+      "badge": "sin-datos",
+      "beneficio_ahora": 0,
+      "beneficio_siguiente": 12.99,
+      "campaign": "MergeA",
+      "campaigns": [
+        "MergeA"
+      ],
+      "clicks": 0,
+      "competition_checks": 0,
+      "competitors": null,
+      "cpc": 0,
+      "ctr": 0,
+      "cvr": null,
+      "demand_checks": 0,
+      "impressions": 0.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": null,
+      "kw_royalties": null,
+      "market_score": 45,
+      "match_type": null,
+      "notes": "",
+      "orders": 0,
+      "sales": 0,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 34.0,
+          "ratio": 1.0
+        },
+        "market_structure": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.08,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 4.45,
+          "ratio": 0.56
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 0.0,
+          "ratio": 0.0
+        }
+      },
+      "score_label": "regular",
+      "search_volume": null,
+      "spend": 0,
+      "suggest_negative": false,
+      "term": "dash diet cookbooks"
+    },
+    {
+      "acos_actual": null,
+      "acos_siguiente": 0.0,
+      "acos_siguiente_sin_venta": null,
+      "ad_type": "SP",
+      "badge": "sin-datos",
+      "beneficio_ahora": 0,
+      "beneficio_siguiente": 12.99,
+      "campaign": "campa\u00f1a de prueba",
+      "campaigns": [],
+      "clicks": 1.0,
+      "competition_checks": 0,
+      "competitors": null,
+      "cpc": 0,
+      "ctr": 0,
+      "cvr": 0.0,
+      "demand_checks": 0,
+      "impressions": 0.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": null,
+      "kw_royalties": null,
+      "market_score": 45,
+      "match_type": "broad",
+      "notes": "",
+      "orders": 0,
+      "sales": 0,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 34.0,
+          "ratio": 1.0
+        },
+        "market_structure": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.08,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 4.45,
+          "ratio": 0.56
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 0.0,
+          "ratio": 0.0
+        }
+      },
+      "score_label": "regular",
+      "search_volume": null,
+      "spend": 0,
+      "suggest_negative": false,
+      "term": "mpp"
+    },
+    {
+      "acos_actual": null,
+      "acos_siguiente": 0.0,
+      "acos_siguiente_sin_venta": null,
+      "ad_type": null,
+      "badge": "sin-datos",
+      "beneficio_ahora": 0,
+      "beneficio_siguiente": 12.99,
+      "campaign": "MergeA",
+      "campaigns": [],
+      "clicks": 0,
+      "competition_checks": 0,
+      "competitors": null,
+      "cpc": 0,
+      "ctr": 0,
+      "cvr": null,
+      "demand_checks": 0,
+      "impressions": 0.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": null,
+      "kw_royalties": null,
+      "market_score": 45,
+      "match_type": "phrase",
+      "notes": "",
+      "orders": 0,
+      "sales": 0,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 34.0,
+          "ratio": 1.0
+        },
+        "market_structure": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.08,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 4.45,
+          "ratio": 0.56
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 0.0,
+          "ratio": 0.0
+        }
+      },
+      "score_label": "regular",
+      "search_volume": null,
+      "spend": 0,
+      "suggest_negative": false,
+      "term": "niche test"
+    },
+    {
+      "acos_actual": null,
+      "acos_siguiente": 0.0,
+      "acos_siguiente_sin_venta": null,
+      "ad_type": null,
+      "badge": "sin-datos",
+      "beneficio_ahora": 0,
+      "beneficio_siguiente": 12.99,
+      "campaign": null,
+      "campaigns": [],
+      "clicks": 0,
+      "competition_checks": 0,
+      "competitors": 3500.0,
+      "cpc": 0,
+      "ctr": 0,
+      "cvr": null,
+      "demand_checks": 0,
+      "impressions": 0.0,
+      "is_manual": true,
+      "keyword_status": "pending",
+      "kw_price": null,
+      "kw_royalties": null,
+      "market_score": 46,
+      "match_type": null,
+      "notes": "",
+      "orders": 0,
+      "sales": 0,
+      "score_breakdown": {
+        "catalog_signals": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "competitors": {
+          "max": 34.0,
+          "points": 9.35,
+          "ratio": 0.28
+        },
+        "market_structure": {
+          "checks": 0,
+          "max": 12.0,
+          "points": 0.0
+        },
+        "price": {
+          "max": 8.0,
+          "points": 6.08,
+          "ratio": 0.76
+        },
+        "royalties": {
+          "max": 8.0,
+          "points": 4.45,
+          "ratio": 0.56
+        },
+        "volume": {
+          "max": 26.0,
+          "points": 26.0,
+          "ratio": 1.0
+        }
+      },
+      "score_label": "regular",
+      "search_volume": 12500.0,
+      "spend": 0,
+      "suggest_negative": false,
+      "term": "mindfulness book"
+    }
+  ],
+  "summary": {
+    "bajo-pe": 3,
+    "en-perdida": 1,
+    "negativas": 0,
+    "recuperable": 0,
+    "sin-datos": 12
+  },
+  "weights": {
+    "catalog_signals": 12,
+    "competitors": 34,
+    "market_structure": 12,
+    "price": 8,
+    "royalties": 8,
+    "volume": 26
+  }
+}

@@ -667,8 +667,11 @@ class TestIter3UnifiedSummary:
                     json={"info": BOOK_INFO, "economy": BOOK_ECONOMY}, timeout=30)
         u = session.get(f"{API}/datasets/{ds}/keywords-unified", timeout=30).json()
         assert "summary" in u
-        for k in ("bajo-pe", "recuperable", "en-perdida", "sin-datos"):
+        BADGE_KEYS = ("bajo-pe", "recuperable", "en-perdida", "sin-datos")
+        for k in BADGE_KEYS:
             assert k in u["summary"]
             assert isinstance(u["summary"][k], int)
-        total = sum(u["summary"].values())
-        assert total == len(u["rows"])
+        # Badge categories are mutually exclusive and cover every row.
+        # `summary.negativas` (if present) is orthogonal and MUST NOT be summed here.
+        badge_total = sum(u["summary"][k] for k in BADGE_KEYS)
+        assert badge_total == len(u["rows"])
