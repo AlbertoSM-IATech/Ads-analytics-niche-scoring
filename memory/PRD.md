@@ -130,3 +130,19 @@
 - **Fase 2**: conectar economía KDP con reportes Ads (`cpc_real = spend/clicks`, clicks_pe por término, consumo_fase, beneficio_kdp en tabla).
 - **Fase 3**: motor de recomendaciones con output `Recommendation` (§17 del puente): WAIT_FOR_DATA, OBSERVE, LOWER_BID, HOLD, SCALE, MOVE_TO_EXACT, NEGATIVE_EXACT_CANDIDATE, NEGATIVE_PHRASE_CANDIDATE, REVIEW_CAMPAIGN, PAUSE_TARGET. Basado en consumo_pe/fase + recuperabilidad + relevancia manual (high/medium/low/unreviewed).
 - **Fase 4**: UI priorizada `/acciones` + exportaciones por tipo de acción.
+
+## Update 2026-05-02 (iter 11) — Fase 2A Profit Navigator: Métricas económicas por término
+- **Helpers nuevos en `kdp_economy.py`**: `resolve_regalia_neta(book_economy, marketplace)` resuelve cascade `kdp → legacy → none` con `regalia_source`. `compute_row_econ(...)` calcula los 9 campos económicos por fila con seguridad ante divisiones por cero.
+- **`/keywords-unified` extendido** (sin romper compatibilidad — claves antiguas intactas, ya no byte-idéntico): cada fila ahora incluye `cpc_real`, `cpc_source` (real|reference|none), `regalia_neta_kdp`, `regalia_source` (kdp|legacy|none), `acos_pe_kdp`, `clicks_pe`, `clicks_fase`, `phase_mult_used`, `consumo_pe`, `consumo_fase`, `beneficio_kdp`, `acos_siguiente_con_venta`. Top-level: `regalia_source`, `regalia_neta_dataset`, `phase`. Además `customer_search_term` y `targeting` quedan como claves separadas en cada fila (nunca se sobrescriben).
+- **`/keyword-detail` extendido** con los mismos 9 campos económicos en `metrics{...}` + `regalia_source`. Para que el detalle lateral tenga el contexto sin requerir otra llamada.
+- **CPC fallback jerarquía**: real (clicks>0 y spend>0) → reference (si hay `cpc_referencia`) → none. Etiquetado claramente en UI.
+- **Multiplicadores de fase intactos**: usa `mult_lanzamiento=1.7`, `mult_dominio=1.2`, `mult_beneficio=0.5` del dataset. **Defaults NO cambiados** (test canario `test_clicks_fase_uses_dataset_multiplier_not_new_defaults` previene migración accidental).
+- **`KeywordsUnified.jsx`**: 3 columnas nuevas (Clicks PE, Consumo fase, Beneficio KDP). Color de Consumo fase: <50% verde, 50-80% amber, 80-100% naranja, >100% rojo. Badge "est." junto a Clicks PE cuando `cpc_source==="reference"`. Beneficio KDP sustituye al bruto cuando hay economía configurada; en `regalia_source==="none"` cae al bruto pero etiquetado.
+- **`KeywordDetailSheet.jsx`**: bloque "Contexto económico KDP" en tab "Gestión de Ads" con 9 métricas + badges de fuente (Regalía: KDP/legacy/no config., CPC: real/estimado/n/d) + disclaimer "Beneficio bruto (Sales − Spend, NO es beneficio real KDP)" debajo.
+- **Endpoints sin tocar (verificado por fixtures byte-equivalent)**: `/autopilot`, `/imports/upload`. NO se ha tocado: motor de recomendaciones, multiplicadores, importador, lógica de Market Score.
+- **Testing**: **187/187 backend OK** (89 fase 1 + 98 anteriores + 28 nuevos en Fase 2: 23 unit `test_phase2_metrics.py` + 5 compat `test_phase2_compat.py`). Iter 11 testing agent: 100% UI/integration validated, sin bugs, sin acciones pendientes.
+
+## Próximas fases (planificadas, NO implementadas aún)
+- **Fase 2B**: campo manual `relevance` (high/medium/low/unreviewed) por término — sólo persistir y mostrar; sin afectar lógicas.
+- **Fase 3**: motor de recomendaciones con output `Recommendation` (§17 del puente): WAIT_FOR_DATA, OBSERVE, LOWER_BID, HOLD, SCALE, MOVE_TO_EXACT, NEGATIVE_EXACT_CANDIDATE, NEGATIVE_PHRASE_CANDIDATE, REVIEW_CAMPAIGN, PAUSE_TARGET. Basado en consumo_pe/fase + recuperabilidad + relevancia manual.
+- **Fase 4**: UI priorizada `/acciones` + exportaciones por tipo de acción (negativas exactas, frase, ajustes puja, etc.).
