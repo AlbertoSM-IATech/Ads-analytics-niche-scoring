@@ -93,6 +93,12 @@ class KeywordOverrideIn(BaseModel):
     competition_check_flags: Optional[dict] = None
     keyword_status: Optional[str] = None        # pending|validated|rejected|testing
     auto_spend: Optional[bool] = None           # if true, spend = clicks*cpc
+    # Phase 2B — manual relevance label, for human review only.
+    # Allowed: unreviewed | high | medium | low. Default: unreviewed.
+    relevance: Optional[str] = None
+
+
+ALLOWED_RELEVANCE = {"unreviewed", "high", "medium", "low"}
 
 
 class MarketCriteriaIn(BaseModel):
@@ -175,7 +181,8 @@ def _merge_rows_with_overrides(rows: list[dict], overrides: dict[str, dict], key
         merged["notes"] = ov.get("notes", "") if ov else ""
         for f in ("search_volume", "competitors", "kw_price", "kw_royalties",
                   "demand_checks", "competition_checks", "keyword_status",
-                  "demand_check_flags", "competition_check_flags"):
+                  "demand_check_flags", "competition_check_flags",
+                  "relevance"):
             if ov.get(f) is not None:
                 merged[f] = ov[f]
         # Campaigns: union of natural + manual
@@ -321,6 +328,11 @@ async def economy_diagnosis(dataset_id: str):
 async def upsert_keyword(dataset_id: str, payload: KeywordOverrideIn):
     if not payload.term.strip():
         raise HTTPException(status_code=400, detail="El término no puede estar vacío")
+    if payload.relevance is not None and payload.relevance not in ALLOWED_RELEVANCE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"relevance inválido. Permitidos: {', '.join(sorted(ALLOWED_RELEVANCE))}",
+        )
     term = payload.term.strip()
     data = payload.model_dump(exclude_none=True)
     data.pop("term", None)
