@@ -614,6 +614,82 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
                 <Metric label="CVR" value={fmtPct(m.cvr)} tooltip="cvr" />
               </div>
 
+              {/* ===== Contexto económico KDP (Phase 2) ===== */}
+              <div className="border border-border rounded-md bg-card p-4 space-y-3" data-testid="kdp-context-block">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    Contexto económico KDP
+                    <InfoTooltip content="Métricas calculadas a partir de la regalía neta resuelta para el libro y el CPC real (o CPC de referencia si aún no hay clicks)." />
+                  </h3>
+                  <div className="flex items-center gap-2 text-[10px]">
+                    {m.regalia_source && (
+                      <span
+                        className={`px-2 py-0.5 rounded border ${
+                          m.regalia_source === "kdp" ? "bg-coral/10 text-coral border-coral/30"
+                          : m.regalia_source === "legacy" ? "bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-500/10 dark:text-amber-400"
+                          : "bg-muted text-muted-foreground border-border"
+                        }`}
+                        data-testid="kdp-regalia-source"
+                      >
+                        Regalía: {m.regalia_source === "kdp" ? "KDP" : m.regalia_source === "legacy" ? "legacy" : "no config."}
+                      </span>
+                    )}
+                    {m.cpc_source && (
+                      <span
+                        className={`px-2 py-0.5 rounded border ${
+                          m.cpc_source === "real" ? "bg-green-100 text-green-700 border-green-300 dark:bg-green-500/10 dark:text-green-400"
+                          : m.cpc_source === "reference" ? "bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-500/10 dark:text-amber-400"
+                          : "bg-muted text-muted-foreground border-border"
+                        }`}
+                        data-testid="kdp-cpc-source"
+                        title={m.cpc_source === "reference" ? "Calculado con CPC de referencia del nicho, no con CPC real de Amazon Ads." : ""}
+                      >
+                        CPC: {m.cpc_source === "real" ? "real" : m.cpc_source === "reference" ? "estimado" : "n/d"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <Metric label="CPC real" value={m.cpc_real == null ? "—" : fmtMoney(m.cpc_real, sym)} testid="kdp-cpc-real" />
+                  <Metric label="Regalía neta" value={m.regalia_neta_kdp == null ? "—" : fmtMoney(m.regalia_neta_kdp, sym)} testid="kdp-regalia-neta" />
+                  <Metric label="ACoS PE" value={m.acos_pe_kdp == null ? "—" : fmtPct(m.acos_pe_kdp)}
+                    tooltip="ACoS de equilibrio = regalía / PVP × 100. También llamado break-even ACoS." testid="kdp-acos-pe" />
+                  <Metric label="Clicks PE" value={m.clicks_pe == null ? "—" : m.clicks_pe.toFixed(2)}
+                    tooltip="Clicks necesarios para no perder dinero: regalía / CPC. <10 frágil; 10-12 aceptable; 13+ bueno."
+                    testid="kdp-clicks-pe" />
+                  <Metric label={`Clicks fase ×${m.phase_mult_used != null ? m.phase_mult_used : "?"}`}
+                    value={m.clicks_fase == null ? "—" : m.clicks_fase.toFixed(2)}
+                    tooltip="Clicks tolerados por la fase actual. Multiplica clicks_pe por el multiplicador de fase del dataset."
+                    testid="kdp-clicks-fase" />
+                  <Metric label="Consumo PE" value={m.consumo_pe == null ? "—" : `${(m.consumo_pe * 100).toFixed(0)}%`}
+                    accent={m.consumo_pe != null && m.consumo_pe > 1 ? "text-red-600 dark:text-red-400" : ""}
+                    testid="kdp-consumo-pe" />
+                  <Metric label="Consumo fase" value={m.consumo_fase == null ? "—" : `${(m.consumo_fase * 100).toFixed(0)}%`}
+                    accent={
+                      m.consumo_fase == null ? ""
+                      : m.consumo_fase < 0.5 ? "text-green-600 dark:text-green-400"
+                      : m.consumo_fase < 0.8 ? "text-amber-600 dark:text-amber-400"
+                      : m.consumo_fase <= 1.0 ? "text-orange-600 dark:text-orange-400"
+                      : "text-red-600 dark:text-red-400 font-semibold"
+                    }
+                    testid="kdp-consumo-fase" />
+                  <Metric label="Beneficio KDP"
+                    value={m.beneficio_kdp == null ? "—" : fmtMoney(m.beneficio_kdp, sym)}
+                    accent={m.beneficio_kdp == null ? "" : m.beneficio_kdp < 0 ? "text-destructive" : "text-green-600 dark:text-green-400"}
+                    tooltip="Beneficio KDP real = pedidos × regalía neta − gasto." testid="kdp-beneficio" />
+                  <Metric label="ACoS +1 (con venta)"
+                    value={m.acos_siguiente_con_venta == null ? "—" : fmtPct(m.acos_siguiente_con_venta)}
+                    tooltip="ACoS si el siguiente click genera venta: (gasto+CPC) / (ventas+PVP) × 100. Requiere PVP del libro."
+                    testid="kdp-acos-next-with-sale" />
+                </div>
+
+                <div className="border-t border-border pt-2 text-[10px] text-muted-foreground italic">
+                  Beneficio bruto (Sales − Spend, NO es beneficio real KDP):
+                  <span className="num ml-1 font-semibold">{m.beneficio_ahora == null ? "—" : fmtMoney(m.beneficio_ahora, sym)}</span>
+                </div>
+              </div>
+
               <div className="border border-border rounded-md bg-card p-4">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">

@@ -38,11 +38,22 @@ const cols = [
   { k: "cvr", label: "CVR", tip: "cvr" },
   { k: "acos_actual", label: "ACoS", tip: "acos" },
   { k: "acos_siguiente", label: "ACoS +1", tip: "acos_siguiente" },
-  { k: "beneficio_ahora", label: "Beneficio", tip: "beneficio_ahora" },
+  { k: "clicks_pe", label: "Clicks PE", tip: "clicks_pe" },
+  { k: "consumo_fase", label: "Consumo fase", tip: "consumo_fase" },
+  { k: "beneficio_kdp", label: "Beneficio KDP", tip: "beneficio_kdp" },
   { k: "badge", label: "Estado" },
   { k: "suggest_negative", label: "Neg.", tip: "suggest_negative" },
   { k: "_act", label: "" },
 ];
+
+// Color for "Consumo fase": <50% verde, 50-80% amber, 80-100% naranja, >100% rojo.
+function consumoFaseClass(v) {
+  if (v == null) return "text-muted-foreground/40";
+  if (v < 0.5) return "text-green-600 dark:text-green-400";
+  if (v < 0.8) return "text-amber-600 dark:text-amber-400";
+  if (v <= 1.0) return "text-orange-600 dark:text-orange-400";
+  return "text-red-600 dark:text-red-400 font-semibold";
+}
 
 function EditableText({ value, onSave, testid, placeholder = "" }) {
   const [editing, setEditing] = useState(false);
@@ -373,8 +384,35 @@ export default function KeywordsUnified({ datasetId }) {
                   <td className={`px-3 py-2 num text-right ${acosColor(r.acos_siguiente)}`} data-testid={`kw-acos-next-${i}`}>
                     {r.acos_siguiente == null ? "—" : fmtPct(r.acos_siguiente)}
                   </td>
-                  <td className={`px-3 py-2 num text-right ${r.beneficio_ahora != null && r.beneficio_ahora < 0 ? "text-destructive" : ""}`}>
-                    {r.beneficio_ahora == null ? "—" : fmtMoney(r.beneficio_ahora, sym)}
+                  <td className="px-3 py-2 num text-right" data-testid={`kw-clicks-pe-${i}`}>
+                    {r.clicks_pe == null ? (
+                      <span className="text-muted-foreground/40">—</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1">
+                        {r.clicks_pe.toFixed(1)}
+                        {r.cpc_source === "reference" && (
+                          <span
+                            className="text-[9px] px-1 py-0 rounded bg-muted text-muted-foreground"
+                            title="CPC estimado: calculado con CPC de referencia del nicho, no con CPC real de Amazon Ads."
+                          >
+                            est.
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </td>
+                  <td className={`px-3 py-2 num text-right ${consumoFaseClass(r.consumo_fase)}`} data-testid={`kw-consumo-fase-${i}`}>
+                    {r.consumo_fase == null ? "—" : `${(r.consumo_fase * 100).toFixed(0)}%`}
+                  </td>
+                  <td className={`px-3 py-2 num text-right ${r.beneficio_kdp != null && r.beneficio_kdp < 0 ? "text-destructive" : (r.beneficio_kdp != null && r.beneficio_kdp > 0 ? "text-green-600 dark:text-green-400" : "")}`} data-testid={`kw-beneficio-kdp-${i}`}>
+                    {r.beneficio_kdp == null ? (
+                      // Fallback to legacy gross when no economy is configured.
+                      r.beneficio_ahora == null
+                        ? <span className="text-muted-foreground/40">—</span>
+                        : <span className="text-muted-foreground" title="Sales − Spend (bruto). Configura la economía del libro para ver beneficio KDP real.">{fmtMoney(r.beneficio_ahora, sym)}</span>
+                    ) : (
+                      fmtMoney(r.beneficio_kdp, sym)
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <span className={`badge-pill ${b.cls}`} data-testid={`kw-badge-${i}`}>

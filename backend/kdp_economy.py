@@ -288,6 +288,119 @@ def beneficio_kdp(orders: float, regalia_neta: float, spend: float) -> float:
     return round((orders or 0) * (regalia_neta or 0) - (spend or 0), 4)
 
 
+# ---------- Phase 2: per-row economic resolver ----------
+
+PHASE_MULT_KEYS = {
+    "lanzamiento": "mult_lanzamiento",
+    "dominio": "mult_dominio",
+    "beneficio": "mult_beneficio",
+}
+PHASE_MULT_DEFAULTS = {"lanzamiento": 1.7, "dominio": 1.2, "beneficio": 0.5}
+
+
+def resolve_regalia_neta(book_economy: dict, marketplace: str) -> dict:
+    """Pick the most authoritative net royalty value for the dataset.
+
+    Priority:
+      1. KDP config (format_type set + computable) → source='kdp'
+      2. Legacy precio_libro + regalias_por_venta   → source='legacy'
+      3. Nothing                                    → source='none'
+
+    Returns: {"regalia_neta": float|None, "pvp": float|None, "source": "kdp"|"legacy"|"none"}
+    Never raises.
+    """
+    pvp = float(book_economy.get("precio_libro") or 0) or None
+    if book_economy.get("format_type"):
+        try:
+            r = calc_regalia_neta(
+                format_type=book_economy["format_type"],
+                pvp=pvp or 0,
+                marketplace=marketplace,
+                iva_type=book_economy.get("iva_type"),
+                royalty_rate_ebook=book_economy.get("royalty_rate_ebook"),
+                tamano_mb=book_economy.get("tamano_mb"),
+                book_format=book_economy.get("book_format"),
+                interior=book_economy.get("interior_type"),
+                size=book_economy.get("book_size"),
+                pages=book_economy.get("pages"),
+            )
+            if r["regalia_neta"] and r["regalia_neta"] > 0 and pvp:
+                return {"regalia_neta": r["regalia_neta"], "pvp": pvp, "source": "kdp"}
+        except KdpEconomyError:
+            pass  # fall through to legacy
+    # Legacy fallback
+    legacy_reg = book_economy.get("regalias_por_venta")
+    if pvp and legacy_reg and float(legacy_reg) > 0:
+        return {"regalia_neta": float(legacy_reg), "pvp": pvp, "source": "legacy"}
+    return {"regalia_neta": None, "pvp": pvp, "source": "none"}
+
+
+def compute_row_econ(
+    *, clicks: float, spend: float, orders: float, sales: float,
+    regalia_neta: Optional[float], pvp: Optional[float],
+    cpc_referencia: Optional[float],
+    phase: str, multipliers: Optional[dict] = None,
+) -> dict:
+    """Compute the 9 Phase-2 economic fields for one aggregated row.
+
+    Inputs are taken AS-IS from the merged Ads row (already coerced to numbers
+    by the caller). Returns Nones when data is insufficient — never invents.
+    """
+    clicks = float(clicks or 0)
+    spend = float(spend or 0)
+    orders = float(orders or 0)
+
+    # CPC: real preferred, then reference fallback (clearly labeled).
+    cpc_real = round(spend / clicks, 4) if (clicks > 0 and spend > 0) else None
+    if cpc_real is not None:
+        cpc_eff = cpc_real
+        cpc_source = "real"
+    elif cpc_referencia and float(cpc_referencia) > 0:
+        cpc_eff = float(cpc_referencia)
+        cpc_source = "reference"
+    else:
+        cpc_eff = None
+        cpc_source = "none"
+
+    # Regalía pivot
+    rn = float(regalia_neta) if (regalia_neta and regalia_neta > 0) else None
+
+    # ACoS PE based on the resolved regalía + pvp
+    acos_pe = calc_acos_pe(rn, pvp) if (rn and pvp) else None
+
+    # Clicks PE / fase / consumos
+    clicks_pe = round(rn / cpc_eff, 4) if (rn and cpc_eff) else None
+    mult_key = PHASE_MULT_KEYS.get(phase, "mult_dominio")
+    mult = float((multipliers or {}).get(mult_key, PHASE_MULT_DEFAULTS[phase if phase in PHASE_MULT_DEFAULTS else "dominio"]))
+    clicks_fase = round(rn * mult / cpc_eff, 4) if (rn and cpc_eff) else None
+    consumo_pe = round(clicks / clicks_pe, 4) if (clicks_pe and clicks_pe > 0) else None
+    consumo_fase = round(clicks / clicks_fase, 4) if (clicks_fase and clicks_fase > 0) else None
+
+    # Beneficio KDP — only meaningful when we have regalía
+    benef_kdp = round(orders * rn - spend, 4) if rn is not None else None
+
+    # ACoS siguiente click con venta — needs PVP and a CPC (real or reference)
+    if pvp and cpc_eff is not None:
+        denom = (sales or 0) + pvp
+        acos_sig_con_venta = round(((spend + cpc_eff) / denom) * 100, 4) if denom > 0 else None
+    else:
+        acos_sig_con_venta = None
+
+    return {
+        "cpc_real": cpc_real,
+        "cpc_source": cpc_source,
+        "regalia_neta_kdp": rn,
+        "acos_pe_kdp": acos_pe,
+        "clicks_pe": clicks_pe,
+        "clicks_fase": clicks_fase,
+        "phase_mult_used": mult,
+        "consumo_pe": consumo_pe,
+        "consumo_fase": consumo_fase,
+        "beneficio_kdp": benef_kdp,
+        "acos_siguiente_con_venta": acos_sig_con_venta,
+    }
+
+
 def _ceil_cent(x: float) -> float:
     return round(ceil(x * 100) / 100.0, 2)
 

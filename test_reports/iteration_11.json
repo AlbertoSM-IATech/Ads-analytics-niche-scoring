@@ -1,0 +1,33 @@
+{
+  "summary": "Iter11 Phase 2A KDP economic metrics - FULL PASS. Backend: 187/187 pytest tests passing (incl. test_phase2_metrics.py 23/23 and test_phase2_compat.py 5/5). Live API validation on both seeded datasets confirms: /keywords-unified rows expose all 12 new econ fields + targeting/customer_search_term (separate keys, neither overwrites). /keyword-detail metrics{} includes the same 12 econ fields + regalia_source. Phase multiplier correct (dataset phase=beneficio -> phase_mult_used=0.5; math verified: clicks_fase = regalia*mult/cpc = 5.09*0.5/0.933 = 2.7278). Compat fixtures byte-equivalent for autopilot and importer. Frontend /keywords: 3 new column headers (kw-col-clicks_pe/consumo_fase/beneficio_kdp) and row cells (kw-clicks-pe-0 etc.) render correctly. Consumo fase color logic verified (1100% -> red). 'est.' badge appears next to Clicks PE for rows with cpc_source='reference'. KeywordDetailSheet 'Gestión de Ads' tab contains kdp-context-block with all 9 metrics, Regalia:KDP + CPC:real badges, and the 'Beneficio bruto ... NO es beneficio real KDP' disclaimer. No bugs found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_phase2_metrics.py",
+    "/app/backend/tests/test_phase2_compat.py",
+    "/app/test_reports/pytest/pytest_iter11_full.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Phase 2A scope correctly limited to econ metrics. No regressions in phase-1 autopilot/importer fixtures (test_phase2_compat asserts byte-equivalence).",
+    "kdp_economy.resolve_regalia_neta() and compute_row_econ() correctly cascade kdp -> legacy -> none with regalia_source set accordingly; covered by 4 dedicated unit tests.",
+    "Frontend KeywordDetailSheet renders all 9 econ metrics cleanly inside a single block; the 'Beneficio bruto' disclaimer is shown in proper context below the KDP block.",
+    "Both seeded datasets on the preview env have book_economy.format_type=PRINT, so regalia_source='kdp' in both (the 'legacy' and 'none' paths are only exercised via unit tests, not live API). Not a bug - unit tests cover those branches (test_resolve_regalia_neta_legacy_when_no_format, test_resolve_regalia_neta_none_when_nothing).",
+    "Row index 0 'dash diet' keyword produces consumo_fase=1100% (red) which visually dominates the table; consider a narrower default column width or tooltip - but this is cosmetic, not a bug."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "187/187 = 100%", "frontend": "100% (all Phase 2A UI contracts validated)"},
+  "test_credentials": "N/A (no auth in app; /app/memory/test_credentials.md intentionally empty)",
+  "seed_data_creation": "None. Used existing datasets d17b595d-... (KDP) and fc16eba4-... for live API checks. Pytest suite creates/cleans its own TEST_* datasets.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 2A shipped clean. Both datasets on preview env have format_type=PRINT -> regalia_source='kdp' at the API level; legacy/none paths are unit-tested only. If you need a live 'legacy' or 'none' dataset, create one via POST /api/datasets with book_economy.format_type unset (and optionally no precio_libro). All Phase 2 testids: kw-col-clicks_pe, kw-col-consumo_fase, kw-col-beneficio_kdp, kw-clicks-pe-{i}, kw-consumo-fase-{i}, kw-beneficio-kdp-{i}, kdp-context-block.",
+  "rca of the issue": "N/A - no issues found. All Phase 2A acceptance criteria (unified keys, detail metrics, compat fixtures, targeting/CST separation, column testids, color logic, 'est.' badge, detail-sheet block + badges + disclaimer) verified end-to-end."
+}

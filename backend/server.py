@@ -23,6 +23,7 @@ from market_score_v2 import (
     MARKET_DEFAULTS, get_defaults, merge_criteria, calc_market_score_v2,
     DEFAULT_WEIGHTS, merge_weights, WEIGHT_KEYS,
 )
+from kdp_economy import resolve_regalia_neta, compute_row_econ
 from autopilot import aggregate_autopilot, parse_niche_csv
 
 ROOT_DIR = Path(__file__).parent
@@ -449,7 +450,8 @@ async def get_snapshots(dataset_id: str, term: str):
 async def keyword_detail(dataset_id: str, term: str):
     doc = await db.datasets.find_one(
         {"id": dataset_id},
-        {"_id": 0, "rows": 1, "overrides": 1, "snapshots": 1, "book_economy": 1}
+        {"_id": 0, "rows": 1, "overrides": 1, "snapshots": 1, "book_economy": 1,
+         "marketplace": 1, "market_criteria": 1, "phase": 1}
     )
     if not doc:
         raise HTTPException(status_code=404, detail="Dataset no encontrado")
@@ -511,6 +513,21 @@ async def keyword_detail(dataset_id: str, term: str):
     # Count underlying imported rows for this term (for UX)
     underlying = sum(1 for r in rows if (r.get(key) or "") == term)
     override = overrides.get(term)
+    # Phase 2 economic context (single keyword)
+    mp = doc.get("marketplace") or "default"
+    regalia_info = resolve_regalia_neta(eco, mp)
+    multipliers = {
+        "mult_lanzamiento": float(eco.get("mult_lanzamiento") or 1.7),
+        "mult_dominio": float(eco.get("mult_dominio") or 1.2),
+        "mult_beneficio": float(eco.get("mult_beneficio") or 0.5),
+    }
+    econ = compute_row_econ(
+        clicks=target.get("clicks") or 0, spend=target.get("spend") or 0,
+        orders=target.get("orders") or 0, sales=target.get("sales") or 0,
+        regalia_neta=regalia_info["regalia_neta"], pvp=regalia_info["pvp"],
+        cpc_referencia=eco.get("cpc_referencia"),
+        phase=doc.get("phase") or "dominio", multipliers=multipliers,
+    )
     return {
         "term": term,
         "key": key,
@@ -543,6 +560,9 @@ async def keyword_detail(dataset_id: str, term: str):
             "market_score": ms["total"],
             "market_score_breakdown": ms["breakdown"],
             "score_label": ms["label"],
+            # Phase 2 economic context
+            **econ,
+            "regalia_source": regalia_info["source"],
         },
         "snapshots": snaps,
         "acos_equilibrio": acos_eq,
@@ -630,6 +650,15 @@ async def get_keywords_unified(dataset_id: str):
     effective_criteria = merge_criteria(mp, criteria_overrides)
     effective_weights = merge_weights(doc.get("score_weights") or {})
     NEG_MIN_CLICKS = 6
+    # Phase-2 economy resolution (single dataset-level call; rows reuse the same regalía/pvp)
+    regalia_info = resolve_regalia_neta(eco, mp)
+    phase_global = doc.get("phase") or "dominio"
+    multipliers = {
+        "mult_lanzamiento": float(eco.get("mult_lanzamiento") or 1.7),
+        "mult_dominio": float(eco.get("mult_dominio") or 1.2),
+        "mult_beneficio": float(eco.get("mult_beneficio") or 0.5),
+    }
+    cpc_referencia = eco.get("cpc_referencia")
     out_rows = []
     for r in agg:
         spend = r.get("spend") or 0
@@ -655,6 +684,13 @@ async def get_keywords_unified(dataset_id: str):
             weights=effective_weights,
         )
         suggest_neg = bool(clicks >= NEG_MIN_CLICKS and (orders or 0) == 0)
+        # Phase-2 economic context (per-row)
+        econ = compute_row_econ(
+            clicks=clicks, spend=spend, orders=orders, sales=sales,
+            regalia_neta=regalia_info["regalia_neta"], pvp=regalia_info["pvp"],
+            cpc_referencia=cpc_referencia,
+            phase=phase_global, multipliers=multipliers,
+        )
         out_rows.append({
             "term": r.get(key) or "—",
             "campaign": r.get("campaign"),
@@ -677,6 +713,9 @@ async def get_keywords_unified(dataset_id: str):
             "badge": badge,
             "match_type": r.get("match_type"),
             "ad_type": r.get("ad_type"),
+            # Preserve targeting alongside customer_search_term — never overwrite either.
+            "customer_search_term": r.get("customer_search_term"),
+            "targeting": r.get("targeting"),
             # Niche study
             "search_volume": r.get("search_volume"),
             "competitors": r.get("competitors"),
@@ -689,6 +728,9 @@ async def get_keywords_unified(dataset_id: str):
             "score_label": ms["label"],
             "score_breakdown": ms["breakdown"],
             "suggest_negative": suggest_neg,
+            # Phase-2 economy fields
+            **econ,
+            "regalia_source": regalia_info["source"],
         })
     # Group summary for dashboard blocks
     summary = {"bajo-pe": 0, "recuperable": 0, "en-perdida": 0, "sin-datos": 0, "negativas": 0}
@@ -704,6 +746,9 @@ async def get_keywords_unified(dataset_id: str):
         "book_economy": eco,
         "summary": summary,
         "weights": effective_weights,
+        "regalia_source": regalia_info["source"],
+        "regalia_neta_dataset": regalia_info["regalia_neta"],
+        "phase": phase_global,
     }
 
 

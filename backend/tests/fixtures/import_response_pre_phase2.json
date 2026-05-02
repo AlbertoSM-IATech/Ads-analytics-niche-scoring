@@ -1,0 +1,71 @@
+{
+  "ad_type": "SP",
+  "book_economy": {
+    "mult_beneficio": 0.5,
+    "mult_dominio": 1.2,
+    "mult_lanzamiento": 1.7,
+    "precio_libro": 0.0,
+    "regalias_por_venta": 0.0
+  },
+  "book_info": {
+    "categories": [],
+    "description": "",
+    "subtitle": "",
+    "title": ""
+  },
+  "header_mapping": {
+    "7 Day Total Orders (#)": "orders",
+    "7 Day Total Sales": "sales",
+    "Ad Group Name": "ad_group",
+    "Campaign Name": "campaign",
+    "Click-Thru Rate (CTR)": "ctr",
+    "Clicks": "clicks",
+    "Cost Per Click (CPC)": "cpc",
+    "Customer Search Term": "customer_search_term",
+    "Impressions": "impressions",
+    "Keyword Text": "targeting",
+    "Match Type": "match_type",
+    "Spend": "spend",
+    "Start Date": "start_date",
+    "Total Advertising Cost of Sales (ACOS)": "acos",
+    "Total Return on Advertising Spend (ROAS)": "roas"
+  },
+  "headers_detected": [
+    "Campaign Name",
+    "Ad Group Name",
+    "Customer Search Term",
+    "Keyword Text",
+    "Match Type",
+    "Impressions",
+    "Clicks",
+    "Click-Thru Rate (CTR)",
+    "Cost Per Click (CPC)",
+    "Spend",
+    "7 Day Total Sales",
+    "7 Day Total Orders (#)",
+    "Total Advertising Cost of Sales (ACOS)",
+    "Total Return on Advertising Spend (ROAS)",
+    "Start Date"
+  ],
+  "kpis": {
+    "acos": 35.27,
+    "clicks": 105.0,
+    "cpc": 0.5,
+    "ctr": 3.09,
+    "cvr": 4.76,
+    "impressions": 3400.0,
+    "orders": 5.0,
+    "roas": 2.83,
+    "sales": 149.97,
+    "spend": 52.9
+  },
+  "market_criteria": {},
+  "marketplace": "us",
+  "name": "PHASE2_FIXTURE_DATASET",
+  "overrides": {},
+  "phase": "dominio",
+  "report_type": "search_term",
+  "row_count": 4,
+  "score_weights": {},
+  "snapshots": {}
+}
