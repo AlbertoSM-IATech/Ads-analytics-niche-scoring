@@ -51,6 +51,7 @@ export const putScoreWeights = (id, payload) => api.put(`/datasets/${id}/score-w
 export const resetScoreWeights = (id) => api.delete(`/datasets/${id}/score-weights`);
 
 export const getEconomyDiagnosis = (id) => api.get(`/datasets/${id}/economy-diagnosis`);
+export const getRecommendations = (id) => api.get(`/datasets/${id}/recommendations`);
 
 export const backupUrl = (id) => `${API}/datasets/${id}/backup`;
 export const restoreBackup = (id, file) => {
