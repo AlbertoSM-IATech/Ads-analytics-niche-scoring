@@ -13,6 +13,7 @@ import AddKeywordWizard from "./AddKeywordWizard";
 import AddCampaignWizard from "./AddCampaignWizard";
 import MultiCampaignCell from "./MultiCampaignCell";
 import { InfoTooltip } from "./InfoTooltip";
+import { getRelevanceDot } from "../lib/relevance";
 import { toast } from "sonner";
 
 const BADGE_STYLES = {
@@ -343,6 +344,17 @@ export default function KeywordsUnified({ datasetId }) {
                       className="text-left hover:text-coral font-medium truncate block w-full inline-flex items-center gap-1.5"
                       data-testid={`kw-term-${i}`}
                     >
+                      {(() => {
+                        const dot = getRelevanceDot(r.relevance);
+                        return (
+                          <span
+                            className={`size-2 rounded-full shrink-0 ${dot.cls}`}
+                            title={dot.label}
+                            data-testid={`rel-dot-${i}`}
+                            data-relevance={r.relevance || "unreviewed"}
+                          />
+                        );
+                      })()}
                       {negative && <Ban className="size-3 text-red-600 shrink-0" data-testid={`neg-icon-${i}`} />}
                       <span className="truncate">{r.term}</span>
                     </button>

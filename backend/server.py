@@ -572,6 +572,8 @@ async def keyword_detail(dataset_id: str, term: str):
             "market_score": ms["total"],
             "market_score_breakdown": ms["breakdown"],
             "score_label": ms["label"],
+            # Phase 2B — manual relevance (default "unreviewed").
+            "relevance": target.get("relevance") or "unreviewed",
             # Phase 2 economic context
             **econ,
             "regalia_source": regalia_info["source"],
@@ -740,6 +742,8 @@ async def get_keywords_unified(dataset_id: str):
             "score_label": ms["label"],
             "score_breakdown": ms["breakdown"],
             "suggest_negative": suggest_neg,
+            # Phase 2B — manual relevance (default "unreviewed").
+            "relevance": r.get("relevance") or "unreviewed",
             # Phase-2 economy fields
             **econ,
             "regalia_source": regalia_info["source"],

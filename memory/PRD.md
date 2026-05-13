@@ -142,7 +142,25 @@
 - **Endpoints sin tocar (verificado por fixtures byte-equivalent)**: `/autopilot`, `/imports/upload`. NO se ha tocado: motor de recomendaciones, multiplicadores, importador, lógica de Market Score.
 - **Testing**: **187/187 backend OK** (89 fase 1 + 98 anteriores + 28 nuevos en Fase 2: 23 unit `test_phase2_metrics.py` + 5 compat `test_phase2_compat.py`). Iter 11 testing agent: 100% UI/integration validated, sin bugs, sin acciones pendientes.
 
+## Update 2026-05-13 (iter 12) — Fase 2B Profit Navigator: Relevancia manual
+- **Campo `relevance` por keyword/search term**: persiste vía el mecanismo de overrides existente (NO colección nueva). Valores permitidos: `unreviewed | high | medium | low`. Default: `"unreviewed"`. Validación en `upsert_keyword`: valor inválido → 400.
+- **Backend**:
+  - `KeywordOverrideIn` extendido con `relevance: Optional[str]`.
+  - `_merge_rows_with_overrides` propaga `relevance` desde el override a cada fila merged.
+  - `/keywords-unified` y `/keyword-detail` exponen `relevance` (default `"unreviewed"` cuando no hay override).
+  - Omitir el campo en un PUT NO modifica el valor existente (gracias a `exclude_none=True` y `setdoc` por dotted keys).
+- **Frontend**:
+  - **Tabla `/keywords`**: dot 8×8px junto al término con color por relevancia (gris/verde/amber/rojo suave) y tooltip. Sin columna nueva, sin saturación.
+  - **Detalle lateral**: bloque "Relevancia: [selector]" justo debajo del SheetHeader, con dot visual sincronizado, 4 opciones y `InfoTooltip` aclarando que en Fase 2B sólo se persiste y muestra.
+  - Lib helper `/app/frontend/src/lib/relevance.js` (RELEVANCE_OPTIONS + RELEVANCE_DOT + getRelevanceDot()).
+- **Garantías cumplidas** (verificadas por tests):
+  - `/autopilot` byte-equivalente con cualquier valor de relevance (test prueba los 4 valores en bucle).
+  - `/imports/upload` byte-equivalente al fixture pre-fase-2.
+  - Las 12 métricas económicas Fase 2A (cpc_real, regalia_neta_kdp, clicks_pe, clicks_fase, etc.) **IDÉNTICAS** al cambiar relevance entre los 4 valores.
+  - `relevance` NO se usa en `autopilot.py`, `suggest_negative`, ni en `compute_row_econ` (sólo lectura/escritura).
+- **Testing**: **199/199 backend OK** (187 anteriores + 12 nuevos en `test_phase2b_relevance.py`). Validación visual del frontend OK: 16/16 dots en tabla, selector funcional en detalle, transiciones unreviewed→high→medium→low→unreviewed sin errores.
+- **NO se ha tocado**: `autopilot.py`, `amazon_ads.py`, `kdp_economy.py`, `compute_row_econ`, `suggest_negative`, motor de recomendaciones, multiplicadores.
+
 ## Próximas fases (planificadas, NO implementadas aún)
-- **Fase 2B**: campo manual `relevance` (high/medium/low/unreviewed) por término — sólo persistir y mostrar; sin afectar lógicas.
-- **Fase 3**: motor de recomendaciones con output `Recommendation` (§17 del puente): WAIT_FOR_DATA, OBSERVE, LOWER_BID, HOLD, SCALE, MOVE_TO_EXACT, NEGATIVE_EXACT_CANDIDATE, NEGATIVE_PHRASE_CANDIDATE, REVIEW_CAMPAIGN, PAUSE_TARGET. Basado en consumo_pe/fase + recuperabilidad + relevancia manual.
+- **Fase 3**: motor de recomendaciones con output `Recommendation` (§17 del puente): WAIT_FOR_DATA, OBSERVE, LOWER_BID, HOLD, SCALE, MOVE_TO_EXACT, NEGATIVE_EXACT_CANDIDATE, NEGATIVE_PHRASE_CANDIDATE, REVIEW_CAMPAIGN, PAUSE_TARGET. Basado en consumo_pe/fase + recuperabilidad con siguiente venta + relevancia. **Eliminará la regla simplista `≥6 clicks + 0 orders → suggest_negative`** sustituyéndola por la lógica del puente.
 - **Fase 4**: UI priorizada `/acciones` + exportaciones por tipo de acción (negativas exactas, frase, ajustes puja, etc.).

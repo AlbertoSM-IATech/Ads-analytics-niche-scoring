@@ -215,8 +215,8 @@
     "pause": [],
     "scale": [
       {
-        "acos_actual": 25.931072818232348,
-        "acos_siguiente": 23.914661374348796,
+        "acos_actual": 35.79676674364896,
+        "acos_siguiente": 31.70570768723194,
         "action": "scale",
         "badge": "bajo-pe",
         "bid_delta_pct": 10,
@@ -224,10 +224,10 @@
         "clicks": 30.0,
         "cpc": 0.93,
         "orders": 6.0,
-        "rationale": "ROAS 3.86. Sube puja 10%.",
-        "roas": 3.86,
-        "sales": 107.94,
-        "spend": 27.99,
+        "rationale": "ROAS 2.79. Sube puja 10%.",
+        "roas": 2.79,
+        "sales": 77.94,
+        "spend": 27.9,
         "term": "dash diet"
       },
       {
@@ -270,7 +270,7 @@
     "pause": 0,
     "scale": 3
   },
-  "generated_at": "2026-05-01T22:30:45.921770+00:00",
+  "generated_at": "2026-05-13T12:58:44.649271+00:00",
   "phase": "dominio",
   "target_acos": 46.558891454965355,
   "target_multiplier": 1.2

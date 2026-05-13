@@ -28,6 +28,7 @@ import { InfoTooltip } from "./InfoTooltip";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from "recharts";
+import { RELEVANCE_OPTIONS, getRelevanceDot } from "../lib/relevance";
 
 const BADGE_STYLES = {
   "bajo-pe": "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/30",
@@ -236,6 +237,19 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
     finally { setSnapshotting(false); }
   };
 
+  const handleRelevanceChange = async (value) => {
+    // Optimistic update for snappy UI; full state refresh follows from backend.
+    setDetail((prev) => prev ? ({ ...prev, metrics: { ...prev.metrics, relevance: value } }) : prev);
+    try {
+      await upsertKeyword(active.id, { term, relevance: value });
+      const r = await getKeywordDetail(active.id, term);
+      setDetail(r.data);
+      toast.success(`Relevancia actualizada: ${value === "unreviewed" ? "Sin revisar" : value}`);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || e.message);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -344,6 +358,33 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
             {m?.underlying_rows ? ` · ${m.underlying_rows} filas base` : ""}
           </SheetDescription>
         </SheetHeader>
+
+        {m && (
+          <div className="flex items-center gap-2 pt-3 px-1 text-xs" data-testid="detail-relevance-row">
+            <span
+              className={`size-2 rounded-full ${getRelevanceDot(m.relevance).cls}`}
+              title={getRelevanceDot(m.relevance).label}
+              data-testid="detail-relevance-dot"
+            />
+            <span className="text-muted-foreground">Relevancia:</span>
+            <Select
+              value={m.relevance || "unreviewed"}
+              onValueChange={handleRelevanceChange}
+            >
+              <SelectTrigger className="h-7 w-32 rounded-md text-xs" data-testid="relevance-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RELEVANCE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value} data-testid={`relevance-option-${o.value}`}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <InfoTooltip content="Clasificación manual de relevancia del término. Servirá en Fase 3 para mejorar las recomendaciones de negativas. Hoy solo se muestra." />
+          </div>
+        )}
 
         {loading || !m ? (
           <div className="py-12 flex justify-center"><Loader2 className="size-6 animate-spin text-coral" /></div>

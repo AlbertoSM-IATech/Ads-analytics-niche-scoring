@@ -25,27 +25,29 @@
   "regalia_source": "kdp",
   "rows": [
     {
-      "acos_actual": 25.931072818232348,
+      "acos_actual": 35.79676674364896,
       "acos_pe_kdp": 39.18,
-      "acos_siguiente": 23.914661374348796,
-      "acos_siguiente_con_venta": 23.9171,
-      "acos_siguiente_sin_venta": 26.79266259032796,
-      "ad_type": null,
+      "acos_siguiente": 31.70570768723194,
+      "acos_siguiente_con_venta": 31.7057,
+      "acos_siguiente_sin_venta": 36.98999230177059,
+      "ad_type": "SP",
       "badge": "bajo-pe",
-      "beneficio_ahora": 79.95,
-      "beneficio_kdp": 2.55,
-      "beneficio_siguiente": 62.010000000000005,
+      "beneficio_ahora": 50.04,
+      "beneficio_kdp": 2.64,
+      "beneficio_siguiente": 62.10000000000001,
       "campaign": "UI_MergeA",
-      "campaigns": [],
+      "campaigns": [
+        "UI_MergeA"
+      ],
       "clicks": 30.0,
-      "clicks_fase": 2.7278,
-      "clicks_pe": 5.4555,
+      "clicks_fase": 2.7366,
+      "clicks_pe": 5.4731,
       "competition_checks": 0,
-      "competitors": null,
-      "consumo_fase": 10.9979,
-      "consumo_pe": 5.499,
+      "competitors": 0.0,
+      "consumo_fase": 10.9625,
+      "consumo_pe": 5.4814,
       "cpc": 0.93,
-      "cpc_real": 0.933,
+      "cpc_real": 0.93,
       "cpc_source": "real",
       "ctr": 3.37,
       "customer_search_term": null,
@@ -54,16 +56,17 @@
       "impressions": 891.0,
       "is_manual": true,
       "keyword_status": "pending",
-      "kw_price": null,
-      "kw_royalties": null,
+      "kw_price": 0.0,
+      "kw_royalties": 0.0,
       "market_score": 45,
       "match_type": "phrase",
-      "notes": "",
+      "notes": "ph2b test note",
       "orders": 6.0,
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
-      "sales": 107.94,
+      "relevance": "unreviewed",
+      "sales": 77.94,
       "score_breakdown": {
         "catalog_signals": {
           "checks": 0,
@@ -97,8 +100,8 @@
         }
       },
       "score_label": "regular",
-      "search_volume": null,
-      "spend": 27.99,
+      "search_volume": 0.0,
+      "spend": 27.9,
       "suggest_negative": false,
       "targeting": "dash diet",
       "term": "dash diet"
@@ -144,6 +147,7 @@
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
+      "relevance": "unreviewed",
       "sales": 38.97,
       "score_breakdown": {
         "catalog_signals": {
@@ -197,7 +201,9 @@
       "beneficio_siguiente": 19.86,
       "campaign": "MergeA",
       "campaigns": [
-        "MergeA"
+        "MergeA",
+        "campa\u00f1a de prueba",
+        "UI_MergeA"
       ],
       "clicks": 5.0,
       "clicks_fase": 2.4951,
@@ -225,6 +231,7 @@
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
+      "relevance": "unreviewed",
       "sales": 17.99,
       "score_breakdown": {
         "catalog_signals": {
@@ -278,7 +285,8 @@
       "beneficio_siguiente": 59.85,
       "campaign": "MergeA",
       "campaigns": [
-        "MergeA"
+        "MergeA",
+        "UI_MergeA"
       ],
       "clicks": 5.0,
       "clicks_fase": 2.9941,
@@ -306,6 +314,7 @@
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
+      "relevance": "unreviewed",
       "sales": 71.96,
       "score_breakdown": {
         "catalog_signals": {
@@ -359,7 +368,8 @@
       "beneficio_siguiente": 10.26,
       "campaign": "MergeA",
       "campaigns": [
-        "MergeA"
+        "MergeA",
+        "UI_MergeA"
       ],
       "clicks": 2.0,
       "clicks_fase": 2.7967,
@@ -387,6 +397,7 @@
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
+      "relevance": "unreviewed",
       "sales": 0,
       "score_breakdown": {
         "catalog_signals": {
@@ -440,7 +451,8 @@
       "beneficio_siguiente": 11.17,
       "campaign": "MergeA",
       "campaigns": [
-        "MergeA"
+        "MergeA",
+        "campa\u00f1a de prueba"
       ],
       "clicks": 1.0,
       "clicks_fase": 2.7967,
@@ -468,6 +480,7 @@
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
+      "relevance": "unreviewed",
       "sales": 0,
       "score_breakdown": {
         "catalog_signals": {
@@ -549,6 +562,7 @@
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
+      "relevance": "unreviewed",
       "sales": 0,
       "score_breakdown": {
         "catalog_signals": {
@@ -630,6 +644,7 @@
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
+      "relevance": "unreviewed",
       "sales": 0,
       "score_breakdown": {
         "catalog_signals": {
@@ -711,6 +726,7 @@
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
+      "relevance": "unreviewed",
       "sales": 0,
       "score_breakdown": {
         "catalog_signals": {
@@ -764,7 +780,8 @@
       "beneficio_siguiente": 12.99,
       "campaign": "MergeA",
       "campaigns": [
-        "MergeA"
+        "MergeA",
+        "UI_MergeA"
       ],
       "clicks": 0,
       "clicks_fase": 3.1812,
@@ -792,6 +809,7 @@
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
+      "relevance": "unreviewed",
       "sales": 0,
       "score_breakdown": {
         "catalog_signals": {
@@ -873,6 +891,7 @@
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
+      "relevance": "unreviewed",
       "sales": 0,
       "score_breakdown": {
         "catalog_signals": {
@@ -954,6 +973,7 @@
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
+      "relevance": "unreviewed",
       "sales": 0,
       "score_breakdown": {
         "catalog_signals": {
@@ -1035,6 +1055,7 @@
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
+      "relevance": "unreviewed",
       "sales": 0,
       "score_breakdown": {
         "catalog_signals": {
@@ -1114,6 +1135,7 @@
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
+      "relevance": "unreviewed",
       "sales": 0,
       "score_breakdown": {
         "catalog_signals": {
@@ -1193,6 +1215,7 @@
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
+      "relevance": "unreviewed",
       "sales": 0,
       "score_breakdown": {
         "catalog_signals": {
@@ -1272,6 +1295,7 @@
       "phase_mult_used": 0.5,
       "regalia_neta_kdp": 5.09,
       "regalia_source": "kdp",
+      "relevance": "unreviewed",
       "sales": 0,
       "score_breakdown": {
         "catalog_signals": {
