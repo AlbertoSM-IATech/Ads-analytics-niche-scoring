@@ -183,6 +183,19 @@
 - **NO tocados** (garantizado por tests): `autopilot.py` byte-equivalente al fixture `autopilot_dominio_pre_phase3.json` tras 5 llamadas a `/recommendations`; `/imports/upload` byte-equivalente al fixture `import_response_pre_phase2.json`; UI completa.
 - **Testing**: **232/232 backend OK** (199 anteriores + 33 nuevos en `test_recommendations.py`). Cubre cada regla G1..G12, parametrize de G7 por relevance, guards de G2 (single-word "free" no dispara, orders>0 no dispara, clicks<3 cae a WAIT_FOR_DATA), bounds de priority_score, determinismo de IDs, read-only del endpoint, regresión de autopilot + importador.
 
+## Update 2026-05-14 (iter 14) — Fase 3A.1: Corrección crítica de regla "ventas con pérdida"
+- **Problema detectado tras Fase 3A**: el motor devolvía `HOLD` para términos con `orders>0` pero `beneficio_kdp<0` y `consumo_pe>1` (ej.: "mindfulness para principiantes" con 3 pedidos, $-5.79 de pérdida y 414% consumo PE). Semánticamente "vende → mantén" es incorrecto si cada venta deja pérdida real KDP.
+- **2 reglas nuevas insertadas antes de G10/G11/G12** (en `recommendations.py`):
+  - **G9.5 — LOWER_BID con ventas no rentables**: si `orders>0 AND beneficio_kdp<0 AND consumo_pe>1.0` → `LOWER_BID` con confidence=medium (o low si `cpc_source==reference`), risk=medium. NUNCA negativa (el término convierte). Mensaje al usuario: "Reducir puja 10-20% y seguir observando. No negativizar porque convierte."
+  - **G9.6 — OBSERVE con pérdida pero sin superar PE**: si `orders>0 AND beneficio_kdp<0 AND consumo_pe<=1.0` → `OBSERVE` con misma jerarquía de confidence.
+- **Garantías cumplidas**:
+  - `relevance=="high"` sigue permitiendo LOWER_BID pero nunca NEGATIVE.
+  - `cpc_source=="reference"` baja confidence a "low" (el cálculo usa CPC estimado).
+  - Términos rentables siguen pudiendo ser HOLD/SCALE/MOVE_TO_EXACT — sin regresión.
+  - `suggest_negative`, `autopilot.py`, importador, UI y multiplicadores **intactos**.
+- **Testing**: **244/244 backend OK** (232 anteriores + 12 nuevos en `test_phase3a1_unprofitable_sales.py`). Verificado en vivo con dataset real: `mindfulness para principiantes` cambió de HOLD → LOWER_BID (priority high, confidence medium, "Vende pero beneficio KDP -$5.79 y supera PE 414%"). Distribución actualizada: `WAIT_FOR_DATA:12, LOWER_BID:2, HOLD:2`.
+
 ## Próximas fases (planificadas, NO implementadas aún)
-- **Fase 3B**: pequeña UI no intrusiva — mostrar el `action_type` principal por término como badge en la tabla (sin tabla nueva), + tooltip con el `recommended_action`. Posible AI-enhanced `reason` con Claude. Patrones irrelevantes configurables por dataset.
-- **Fase 4**: ruta `/acciones` con tabla priorizada, filtros por `action_type`/`priority`, y exportaciones bulk (CSV por tipo de acción). Reglas REVIEW_CAMPAIGN (agregaciones a nivel campaña) y PAUSE_TARGET (agregaciones a nivel ad_group). Decisión post-validación: ¿se sustituye `suggest_negative` por este motor?
+- **Fase 3B**: badge no intrusivo del `action_type` principal por término en la tabla (sin nueva ruta). Patrones irrelevantes configurables por dataset.
+- **Fase 4**: ruta `/acciones` con tabla priorizada, filtros, exportaciones CSV bulk por tipo. Reglas REVIEW_CAMPAIGN (agregaciones nivel campaña) + PAUSE_TARGET (agregaciones ad_group). Decisión post-validación sobre sustituir `suggest_negative`.
+- **No urgente**: AI-enhanced `reason` con Claude — descartado por ahora, primero reglas transparentes y correctas.

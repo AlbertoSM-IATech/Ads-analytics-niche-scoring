@@ -386,6 +386,45 @@ def decide(row: dict, *, dataset_id: str, phase: str, regalia_source: str,
             amazon_instruction="No realizar cambios.")
 
     # --------------------------------- Positive actions (orders > 0) ----
+    # G9.5 — Phase 3A.1: orders>0 but losing money on KDP economics + over PE.
+    # Conviene reducir puja antes de evaluar SCALE/HOLD: el término convierte pero
+    # cada conversión deja pérdida real. NUNCA negativizar (vende → señal de intención).
+    if (orders > 0 and benef_kdp is not None and benef_kdp < 0
+            and consumo_pe is not None and consumo_pe > 1.0):
+        # Reference CPC means the loss estimate is based on the niche reference,
+        # not real Ads data → lower the confidence.
+        conf = "low" if cpc_source == "reference" else "medium"
+        return make("LOWER_BID",
+            detected_problem=(f"Vende pero el beneficio KDP es negativo "
+                              f"({_fmt_money(benef_kdp, sym)}) y supera el PE "
+                              f"({_fmt_pct(consumo_pe)})."),
+            recommended_action="Reducir puja 10-20% y seguir observando. "
+                               "NO negativizar porque convierte; pero cada venta deja pérdida.",
+            reason=(f"{orders} pedidos pero beneficio KDP "
+                    f"{_fmt_money(benef_kdp, sym)}; consumo PE "
+                    f"{_fmt_pct(consumo_pe)}. "
+                    f"ACoS actual {acos:.1f}% vs ACoS PE {acos_pe_kdp:.1f}%."),
+            confidence=conf, risk="medium",
+            expected_impact="Reducir gasto por click manteniendo conversiones; mejorar margen.",
+            amazon_instruction=(f"Revisa «{term}» en Amazon Ads y reduce la puja "
+                                f"un 10-20%. Mantén seguimiento tras nuevos clicks. "
+                                "No añadir como negativa."))
+
+    # G9.6 — Phase 3A.1 variant: orders>0, profit<0, but PE not yet exceeded.
+    # Insufficient signal for LOWER_BID; ask for observation.
+    if (orders > 0 and benef_kdp is not None and benef_kdp < 0
+            and (consumo_pe is None or consumo_pe <= 1.0)):
+        conf = "low" if cpc_source == "reference" else "medium"
+        return make("OBSERVE",
+            detected_problem=f"Vende pero el beneficio KDP es negativo ({_fmt_money(benef_kdp, sym)}).",
+            recommended_action="Observar 2-3 clicks más antes de actuar.",
+            reason=(f"{orders} pedidos, beneficio KDP "
+                    f"{_fmt_money(benef_kdp, sym)}, consumo PE "
+                    f"{_fmt_pct(consumo_pe)}. Todavía no supera el PE — "
+                    f"la rentabilidad podría mejorar con más conversiones."),
+            confidence=conf, risk="low",
+            amazon_instruction="No realizar cambios. Acumular más datos.")
+
     # G10
     if (orders > 0 and mt in PROMOTABLE_MATCH_TYPES
             and row.get("customer_search_term") and acos is not None and acos_pe_kdp is not None
