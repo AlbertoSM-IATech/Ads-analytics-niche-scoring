@@ -323,6 +323,42 @@ async def economy_diagnosis(dataset_id: str):
     return compute_full_diagnosis(book_eco, mp)
 
 
+@api.get("/datasets/{dataset_id}/recommendations")
+async def get_recommendations(dataset_id: str):
+    """Phase 3A — read-only parallel recommendations engine.
+
+    Reuses /keywords-unified row enrichment (Phase 2A metrics + Phase 2B relevance).
+    Strictly READ-ONLY: zero DB writes; autopilot.py and suggest_negative remain
+    untouched.
+    """
+    from recommendations import build_recommendations, summarize_by_action
+    from kdp_economy import MARKETPLACE_CONFIG, normalize_mp
+    unified = await get_keywords_unified(dataset_id)
+    rows = unified.get("rows") or []
+    doc = await db.datasets.find_one({"id": dataset_id}, {"_id": 0, "marketplace": 1})
+    mp = (doc or {}).get("marketplace") or "COM"
+    try:
+        sym = MARKETPLACE_CONFIG[normalize_mp(mp)]["symbol"]
+    except Exception:
+        sym = "$"
+    recs = build_recommendations(
+        rows,
+        dataset_id=dataset_id,
+        phase=unified.get("phase") or "dominio",
+        regalia_source=unified.get("regalia_source") or "none",
+        sym=sym,
+    )
+    return {
+        "phase": unified.get("phase") or "dominio",
+        "regalia_source": unified.get("regalia_source") or "none",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "count": len(recs),
+        "by_action": summarize_by_action(recs),
+        "recommendations": [r.model_dump() for r in recs],
+    }
+
+
+
 # ---- Keyword overrides (inline edit + manual add) ----
 @api.put("/datasets/{dataset_id}/keyword")
 async def upsert_keyword(dataset_id: str, payload: KeywordOverrideIn):

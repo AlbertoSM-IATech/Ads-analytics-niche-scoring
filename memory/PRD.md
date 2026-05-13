@@ -161,6 +161,28 @@
 - **Testing**: **199/199 backend OK** (187 anteriores + 12 nuevos en `test_phase2b_relevance.py`). Validación visual del frontend OK: 16/16 dots en tabla, selector funcional en detalle, transiciones unreviewed→high→medium→low→unreviewed sin errores.
 - **NO se ha tocado**: `autopilot.py`, `amazon_ads.py`, `kdp_economy.py`, `compute_row_econ`, `suggest_negative`, motor de recomendaciones, multiplicadores.
 
+## Update 2026-05-14 (iter 13) — Fase 3A Profit Navigator: Motor de recomendaciones paralelo
+- **Nuevo módulo `/app/backend/recommendations.py`** (puro, sin DB, **NO importa `autopilot.py`** — zero coupling):
+  - Schema Pydantic `Recommendation` + `RecommendationMetrics` (§17 del puente).
+  - 10 `action_type`s: WAIT_FOR_DATA, OBSERVE, LOWER_BID, HOLD, SCALE, MOVE_TO_EXACT, NEGATIVE_EXACT_CANDIDATE, NEGATIVE_PHRASE_CANDIDATE, REVIEW_CAMPAIGN, PAUSE_TARGET. Los dos últimos están **reservados pero no se emiten en 3A** (test lo verifica).
+  - 12 reglas de decisión (G1..G12) evaluadas secuencialmente.
+  - `IRRELEVANT_PATTERNS`: lista cerrada bilingüe (13 patrones multi-palabra ES+EN; "free"/"gratis" solos NO disparan).
+  - `normalize_match_type()` mapea automatic→auto, broad match→broad, etc.
+  - `priority_score(0..100)` transparente: consumo_pe×18 + spend/20×15 + 12 si no recuperable + 10 si 0 orders sobre PE + 8/4/2/0 por relevance + 8 si beneficio negativo. Mapeo a buckets: ≥70 high, ≥40 medium, <40 low.
+  - `is_recoverable_with_next_sale`: `acos_siguiente_con_venta ≤ acos_pe_kdp × 1.10` (buffer del 10%).
+- **Nuevo endpoint `GET /api/datasets/{id}/recommendations`** (1 endpoint añadido, ningún otro tocado):
+  - Estrictamente **READ-ONLY**: 0 escrituras a DB (test sha256-hash del documento antes/después de 5 llamadas).
+  - Reutiliza `get_keywords_unified` internamente (no duplica lógica de enriquecimiento).
+  - Devuelve `{count, phase, regalia_source, generated_at, by_action, recommendations[]}` ordenadas por `priority_score desc`.
+  - IDs deterministas (`hashlib.sha256(dataset_id+term+action_type)[:16]`) → llamar al endpoint N veces produce los mismos IDs.
+- **Ajustes obligatorios cumplidos**:
+  - G2 (NEGATIVE_PHRASE_CANDIDATE) requiere `orders==0 AND clicks≥3 AND consumo_fase≥0.5` además del patrón.
+  - G7 calcula `cpc_max_rentable = regalia_neta_kdp/10` y degrada a regla basada en relevance/consumo si no está disponible.
+  - REVIEW_CAMPAIGN y PAUSE_TARGET reservados en el schema, sin reglas activas en 3A.
+  - `suggest_negative` original sigue conviviendo — sin sustitución.
+- **NO tocados** (garantizado por tests): `autopilot.py` byte-equivalente al fixture `autopilot_dominio_pre_phase3.json` tras 5 llamadas a `/recommendations`; `/imports/upload` byte-equivalente al fixture `import_response_pre_phase2.json`; UI completa.
+- **Testing**: **232/232 backend OK** (199 anteriores + 33 nuevos en `test_recommendations.py`). Cubre cada regla G1..G12, parametrize de G7 por relevance, guards de G2 (single-word "free" no dispara, orders>0 no dispara, clicks<3 cae a WAIT_FOR_DATA), bounds de priority_score, determinismo de IDs, read-only del endpoint, regresión de autopilot + importador.
+
 ## Próximas fases (planificadas, NO implementadas aún)
-- **Fase 3**: motor de recomendaciones con output `Recommendation` (§17 del puente): WAIT_FOR_DATA, OBSERVE, LOWER_BID, HOLD, SCALE, MOVE_TO_EXACT, NEGATIVE_EXACT_CANDIDATE, NEGATIVE_PHRASE_CANDIDATE, REVIEW_CAMPAIGN, PAUSE_TARGET. Basado en consumo_pe/fase + recuperabilidad con siguiente venta + relevancia. **Eliminará la regla simplista `≥6 clicks + 0 orders → suggest_negative`** sustituyéndola por la lógica del puente.
-- **Fase 4**: UI priorizada `/acciones` + exportaciones por tipo de acción (negativas exactas, frase, ajustes puja, etc.).
+- **Fase 3B**: pequeña UI no intrusiva — mostrar el `action_type` principal por término como badge en la tabla (sin tabla nueva), + tooltip con el `recommended_action`. Posible AI-enhanced `reason` con Claude. Patrones irrelevantes configurables por dataset.
+- **Fase 4**: ruta `/acciones` con tabla priorizada, filtros por `action_type`/`priority`, y exportaciones bulk (CSV por tipo de acción). Reglas REVIEW_CAMPAIGN (agregaciones a nivel campaña) y PAUSE_TARGET (agregaciones a nivel ad_group). Decisión post-validación: ¿se sustituye `suggest_negative` por este motor?
