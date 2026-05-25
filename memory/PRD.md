@@ -195,7 +195,21 @@
   - `suggest_negative`, `autopilot.py`, importador, UI y multiplicadores **intactos**.
 - **Testing**: **244/244 backend OK** (232 anteriores + 12 nuevos en `test_phase3a1_unprofitable_sales.py`). Verificado en vivo con dataset real: `mindfulness para principiantes` cambió de HOLD → LOWER_BID (priority high, confidence medium, "Vende pero beneficio KDP -$5.79 y supera PE 414%"). Distribución actualizada: `WAIT_FOR_DATA:12, LOWER_BID:2, HOLD:2`.
 
+## Update 2026-05-25 (iter 15) — Fase 3B: UI no intrusiva de recomendaciones
+- **Frontend puro** (sin tocar backend ni `recommendations.py`/`autopilot.py`/`suggest_negative`/importador):
+  - **`/app/frontend/src/lib/recommendations.js`**: helpers presentacionales (ACTION_LABELS ES, ACTION_STYLES por color/badge, priorityLabel/confidenceLabel/riskLabel, `mapRecommendationsByTerm`, `findRecForRow` con fallback term→customer_search_term→targeting).
+  - **`/app/frontend/src/components/RecommendationBadge.jsx`**: badge compacto (data-testid `rec-badge-{i}`) con Tooltip Radix mostrando label, problema, razón, confianza, riesgo y score. Retorna `null` sin recomendación.
+  - **`KeywordsUnified.jsx`**: añadido `getRecommendations()` en `load()` (sin bloquear render — promesa paralela; fallo silencioso). Mapa indexado por término. Badge insertado dentro del `<button>` del término (junto al dot de relevancia y el ícono Ban negativa). Sin columna nueva, sin filtros, sin ordenación.
+  - **`KeywordDetailSheet.jsx`**: nuevo bloque "Recomendación del motor" al tope del tab Ads, encima del card del Piloto. Muestra: action_type traducido (con color), priority, confidence, risk, score, detected_problem, reason, recommended_action, amazon_instruction. data-testids: `engine-rec-block`, `engine-rec-action`, `engine-rec-priority`, `engine-rec-confidence`, `engine-rec-risk`, `engine-rec-score`, `engine-rec-problem`, `engine-rec-reason`, `engine-rec-recommended`, `engine-rec-amazon`.
+- **Verificación visual con dataset real** (id `d17b595d-…`): 16 keywords, `by_action: {WAIT_FOR_DATA:12, LOWER_BID:2, HOLD:2}` — coincide al 100% con la tabla:
+  - `mindfulness para principiantes` → badge "Bajar puja" + bloque side panel con prioridad Alta, score 79, problema "Vende pero beneficio KDP -$5.79 y supera PE 414%", acción "Reducir puja 10-20%, no negativizar".
+  - `dash diet` / `high blood pressure...` → "Mantener" (HOLD).
+  - `dash cookbook` → "Bajar puja" (LOWER_BID).
+  - 12 términos con clicks < 3 o sin economía → "Esperar datos" (WAIT_FOR_DATA).
+- **NO se ha tocado**: backend, `recommendations.py`, multiplicadores, importador, autopilot, suggest_negative, schema MongoDB. Cero endpoint nuevo.
+- **Tests backend** (regresión): 216/216 OK (sin cambios). El endpoint `/recommendations` ya cubierto por `test_recommendations.py` + `test_phase3a1_unprofitable_sales.py`.
+
 ## Próximas fases (planificadas, NO implementadas aún)
-- **Fase 3B**: badge no intrusivo del `action_type` principal por término en la tabla (sin nueva ruta). Patrones irrelevantes configurables por dataset.
 - **Fase 4**: ruta `/acciones` con tabla priorizada, filtros, exportaciones CSV bulk por tipo. Reglas REVIEW_CAMPAIGN (agregaciones nivel campaña) + PAUSE_TARGET (agregaciones ad_group). Decisión post-validación sobre sustituir `suggest_negative`.
-- **No urgente**: AI-enhanced `reason` con Claude — descartado por ahora, primero reglas transparentes y correctas.
+- **No urgente**: patrones irrelevantes configurables por dataset; AI-enhanced `reason` con Claude.
+

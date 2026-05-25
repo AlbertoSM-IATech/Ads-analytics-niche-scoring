@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getKeywordsUnified, upsertKeyword, exportNegativesUrl, getCampaignsList } from "../lib/api";
+import { getKeywordsUnified, upsertKeyword, exportNegativesUrl, getCampaignsList, getRecommendations } from "../lib/api";
 import { useData } from "../context/DataContext";
 import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
@@ -14,6 +14,8 @@ import AddCampaignWizard from "./AddCampaignWizard";
 import MultiCampaignCell from "./MultiCampaignCell";
 import { InfoTooltip } from "./InfoTooltip";
 import { getRelevanceDot } from "../lib/relevance";
+import { mapRecommendationsByTerm, findRecForRow } from "../lib/recommendations";
+import { RecommendationBadge } from "./RecommendationBadge";
 import { toast } from "sonner";
 
 const BADGE_STYLES = {
@@ -143,6 +145,7 @@ export default function KeywordsUnified({ datasetId }) {
   const location = useLocation();
   const [data, setData] = useState(null);
   const [allCampaigns, setAllCampaigns] = useState([]);
+  const [recsMap, setRecsMap] = useState(new Map());
   const [q, setQ] = useState("");
   const [filterBadge, setFilterBadge] = useState(location.state?.filterBadge || null);
   const [onlyNegatives, setOnlyNegatives] = useState(false);
@@ -161,6 +164,10 @@ export default function KeywordsUnified({ datasetId }) {
     ]);
     setData(r.data);
     setAllCampaigns(Array.isArray(c.data) ? c.data : []);
+    // Recommendations are decorative — load asynchronously, never block the table.
+    getRecommendations(datasetId)
+      .then((rec) => setRecsMap(mapRecommendationsByTerm(rec.data?.recommendations || [])))
+      .catch(() => setRecsMap(new Map()));
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [datasetId, active?.book_economy?.precio_libro, active?.book_economy?.regalias_por_venta]);
@@ -357,6 +364,7 @@ export default function KeywordsUnified({ datasetId }) {
                       })()}
                       {negative && <Ban className="size-3 text-red-600 shrink-0" data-testid={`neg-icon-${i}`} />}
                       <span className="truncate">{r.term}</span>
+                      <RecommendationBadge rec={findRecForRow(recsMap, r)} testidSuffix={i} />
                     </button>
                   </td>
                   <td className="px-3 py-2">

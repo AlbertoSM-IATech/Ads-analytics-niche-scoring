@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import {
   getKeywordDetail, snapshotAll, getSnapshots,
-  upsertKeyword, deleteKeywordOverride, getCampaignsList, getAutopilot,
+  upsertKeyword, deleteKeywordOverride, getCampaignsList, getAutopilot, getRecommendations,
 } from "../lib/api";
 import { useData } from "../context/DataContext";
 import { toast } from "sonner";
@@ -29,6 +29,10 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from "recharts";
 import { RELEVANCE_OPTIONS, getRelevanceDot } from "../lib/relevance";
+import {
+  ACTION_LABELS, ACTION_STYLES, priorityLabel, confidenceLabel, riskLabel,
+  mapRecommendationsByTerm, findRecForRow,
+} from "../lib/recommendations";
 
 const BADGE_STYLES = {
   "bajo-pe": "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/30",
@@ -114,6 +118,9 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
   const [apRec, setApRec] = useState(null);
   const [apLoading, setApLoading] = useState(false);
 
+  // Phase 3B — engine recommendation lookup for this term
+  const [engineRec, setEngineRec] = useState(null);
+
   // Ads fields
   const [clicks, setClicks] = useState(0);
   const [impressions, setImpressions] = useState(0);
@@ -194,6 +201,17 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
     if (!open || !active) return;
     getCampaignsList(active.id).then((r) => setAllCampaigns(r.data || [])).catch(() => {});
   }, [open, active]);
+
+  // Phase 3B — fetch the engine recommendation for the active term
+  useEffect(() => {
+    if (!open || !active || !term) { setEngineRec(null); return; }
+    getRecommendations(active.id)
+      .then((r) => {
+        const map = mapRecommendationsByTerm(r.data?.recommendations || []);
+        setEngineRec(findRecForRow(map, { term, customer_search_term: term, targeting: term }));
+      })
+      .catch(() => setEngineRec(null));
+  }, [open, active, term]);
 
   useEffect(() => {
     if (!open || !active || !term) return;
@@ -530,6 +548,72 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
 
             {/* ===== TAB ADS ===== */}
             <TabsContent value="ads" className="space-y-5 py-4">
+              {/* Phase 3B — Engine recommendation block (read-only) */}
+              {engineRec && (() => {
+                const style = ACTION_STYLES[engineRec.action_type] || ACTION_STYLES.WAIT_FOR_DATA;
+                const label = ACTION_LABELS[engineRec.action_type] || engineRec.action_type;
+                const score = typeof engineRec.priority_score === "number" ? Math.round(engineRec.priority_score) : "—";
+                return (
+                  <div className="border border-border rounded-md bg-card p-3 space-y-3" data-testid="engine-rec-block">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="size-4 text-coral" />
+                        <h3 className="text-sm font-semibold">Recomendación del motor</h3>
+                        <InfoTooltip content="Recomendación calculada por el motor determinista (Fase 3A/3A.1) basada en consumo PE, recuperabilidad, relevancia y beneficio KDP. Read-only: no aplica cambios automáticamente." />
+                      </div>
+                      <span
+                        className={`inline-flex items-center rounded-md border text-[11px] py-0.5 px-2 ${style.cls}`}
+                        data-testid="engine-rec-action"
+                        data-action-type={engineRec.action_type}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap text-[10px]">
+                      <span
+                        className="px-2 py-0.5 rounded border bg-muted text-muted-foreground border-border"
+                        data-testid="engine-rec-priority"
+                      >
+                        Prioridad: <span className="font-semibold">{priorityLabel(engineRec.priority)}</span>
+                      </span>
+                      <span className="px-2 py-0.5 rounded border bg-muted text-muted-foreground border-border" data-testid="engine-rec-confidence">
+                        Confianza: <span className="font-semibold">{confidenceLabel(engineRec.confidence)}</span>
+                      </span>
+                      <span className="px-2 py-0.5 rounded border bg-muted text-muted-foreground border-border" data-testid="engine-rec-risk">
+                        Riesgo: <span className="font-semibold">{riskLabel(engineRec.risk)}</span>
+                      </span>
+                      <span className="px-2 py-0.5 rounded border bg-muted text-muted-foreground border-border num" data-testid="engine-rec-score">
+                        Score: <span className="font-semibold">{score}</span>
+                      </span>
+                    </div>
+                    {engineRec.detected_problem && (
+                      <div className="text-xs" data-testid="engine-rec-problem">
+                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-0.5">Problema detectado</div>
+                        <div className="italic text-foreground/90">{engineRec.detected_problem}</div>
+                      </div>
+                    )}
+                    {engineRec.reason && (
+                      <div className="text-xs" data-testid="engine-rec-reason">
+                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-0.5">Razón</div>
+                        <div>{engineRec.reason}</div>
+                      </div>
+                    )}
+                    {engineRec.recommended_action && (
+                      <div className="text-xs" data-testid="engine-rec-recommended">
+                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-0.5">Acción recomendada</div>
+                        <div>{engineRec.recommended_action}</div>
+                      </div>
+                    )}
+                    {engineRec.amazon_instruction && (
+                      <div className="text-xs border-t border-border pt-2" data-testid="engine-rec-amazon">
+                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-0.5">Cómo aplicarlo en Amazon Ads</div>
+                        <div className="text-foreground/90">{engineRec.amazon_instruction}</div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Quick actions from original */}
               <div className="border border-border rounded-md bg-muted/30 p-3 space-y-2" data-testid="quick-actions">
                 <div className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">Acciones rápidas (simular)</div>
