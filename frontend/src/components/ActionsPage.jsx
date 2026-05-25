@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Loader2, AlertCircle, Inbox } from "lucide-react";
 import { getRecommendations } from "../lib/api";
 import { useData } from "../context/DataContext";
@@ -13,6 +14,12 @@ const PRI_DOT = {
   medium: "bg-amber-500",
   low: "bg-neutral-400",
 };
+
+const VALID_ACTION_TYPES = new Set([
+  "WAIT_FOR_DATA", "OBSERVE", "LOWER_BID", "HOLD", "SCALE",
+  "MOVE_TO_EXACT", "NEGATIVE_EXACT_CANDIDATE", "NEGATIVE_PHRASE_CANDIDATE",
+  "REVIEW_CAMPAIGN", "PAUSE_TARGET",
+]);
 
 const DEFAULT_FILTERS = {
   priority: "", actionType: "", confidence: "", risk: "",
@@ -34,8 +41,40 @@ export default function ActionsPage({ datasetId }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [payload, setPayload] = useState(null);
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Initialise actionType from query string (deep-link). Invalid values are ignored.
+  const initialActionType = (() => {
+    const raw = searchParams.get("action_type");
+    return raw && VALID_ACTION_TYPES.has(raw) ? raw : "";
+  })();
+  const [filters, setFilters] = useState({ ...DEFAULT_FILTERS, actionType: initialActionType });
   const [selected, setSelected] = useState(null);
+
+  // Keep URL in sync with the actionType filter (Phase 4A.1 deep-link contract).
+  useEffect(() => {
+    const current = searchParams.get("action_type") || "";
+    if (filters.actionType && filters.actionType !== current) {
+      const next = new URLSearchParams(searchParams);
+      next.set("action_type", filters.actionType);
+      setSearchParams(next, { replace: true });
+    } else if (!filters.actionType && current) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("action_type");
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.actionType]);
+
+  // External URL changes (back/forward, manual edit) → reflect in filter state.
+  useEffect(() => {
+    const raw = searchParams.get("action_type") || "";
+    const next = raw && VALID_ACTION_TYPES.has(raw) ? raw : "";
+    if (next !== filters.actionType) {
+      setFilters((f) => ({ ...f, actionType: next }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   useEffect(() => {
     if (!datasetId) return;

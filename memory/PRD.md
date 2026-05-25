@@ -228,6 +228,16 @@
 - **READ-ONLY estricto**: cero llamadas PUT/POST/DELETE. Solo `GET /recommendations`. Sin export CSV. Sin REVIEW_CAMPAIGN/PAUSE_TARGET activos. Sin sustitución de `suggest_negative`. Patrones irrelevantes hardcoded como antes.
 - **NO tocados**: `recommendations.py`, `server.py`, `autopilot.py`, `amazon_ads.py`, `kdp_economy.py`, importador, multiplicadores, tests backend (216/216 OK regresión cero).
 
+## Update 2026-05-25 (iter 17) — Fase 4A.1: Deep-link badge → /acciones
+- **Frontend puro**, sin tocar backend. `git diff backend/` vacío. Solo 2 archivos tocados (`RecommendationBadge.jsx`, `ActionsPage.jsx`).
+- **`RecommendationBadge`**: ahora clicable (role=button, tabIndex, onKeyDown Enter/Space). `onClick` → `navigate('/acciones?action_type=<TYPE>')` con `stopPropagation` para que el click en el badge NO abra el side panel del término. Tooltip conservado con línea adicional "Click → ver todas las acciones «<label>»".
+- **`ActionsPage`**: usa `useSearchParams`. En mount lee `action_type` y, si está dentro del set válido de 10 ALL_ACTIONS, lo inyecta como filtro inicial. Sincroniza bidireccional: cualquier cambio del select de Acción actualiza la URL (`replace`); cambios externos del query string actualizan el filtro. Botón "Limpiar" elimina `action_type` del URL.
+- **Validaciones e2e cumplidas**:
+  - Click LOWER_BID badge desde `/keywords` → `/acciones?action_type=LOWER_BID`, 2 rows (ambas LOWER_BID), select muestra "Bajar puja". ✓
+  - "Limpiar" → URL `/acciones` (sin query), 16 rows visibles, select "Todas". ✓
+  - `/acciones?action_type=BANANA` (inválido) → 16 rows, select "Todas", app no rompe. ✓
+- **NO se ha tocado**: backend, `recommendations.py`, `server.py`, `autopilot.py`, importador, kdp_economy, suggest_negative, reglas del motor. Sin export CSV. Sin nuevos KPIs.
+
 ## Próximas fases (planificadas, NO implementadas aún)
 - **Fase 4B (futuro)**: exportaciones CSV bulk por `action_type` (negativas, scale, lower_bid…). Decidir si sustituir `suggest_negative` legacy.
 - **Fase 4C (futuro)**: activar reglas `REVIEW_CAMPAIGN` (agregaciones nivel campaña) y `PAUSE_TARGET` (agregaciones ad_group) en `recommendations.py` con tests.
