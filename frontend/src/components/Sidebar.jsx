@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import {
-  LayoutDashboard, Upload, Megaphone, Target, BookOpen, Zap,
+  LayoutDashboard, Upload, Megaphone, Target, BookOpen, Zap, ListChecks,
   ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -13,6 +13,7 @@ const items = [
   { to: "/import", label: "Importar", icon: Upload, testid: "nav-import" },
   { to: "/campaigns", label: "Campañas", icon: Megaphone, testid: "nav-campaigns" },
   { to: "/keywords", label: "Keywords", icon: Target, testid: "nav-keywords" },
+  { to: "/acciones", label: "Acciones", icon: ListChecks, testid: "nav-actions" },
 ];
 
 export default function Sidebar() {

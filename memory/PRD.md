@@ -209,7 +209,27 @@
 - **NO se ha tocado**: backend, `recommendations.py`, multiplicadores, importador, autopilot, suggest_negative, schema MongoDB. Cero endpoint nuevo.
 - **Tests backend** (regresión): 216/216 OK (sin cambios). El endpoint `/recommendations` ya cubierto por `test_recommendations.py` + `test_phase3a1_unprofitable_sales.py`.
 
+## Update 2026-05-25 (iter 16) — Fase 4A: Ruta /acciones read-only
+- **Frontend puro**, sin tocar backend. `git diff backend/` vacío. Solo 2 archivos tocados (`Sidebar.jsx`, `pages/Dashboard.jsx`) + 4 nuevos componentes.
+- **Nuevos componentes**:
+  - **`ActionsPage.jsx`**: orquesta fetch `GET /api/datasets/{id}/recommendations`, estado de filtros (local), ordenación, drawer. Maneja loading / error / empty (sin recs y filtros sin match). Top meta: fase, regalia_source, generated_at + cartel "Read-only · no modifica datos".
+  - **`ActionsSummary.jsx`**: 4 KPIs (total, alta, media, baja) + chips desglose por `action_type` usando `by_action` del backend (incluye tipos reservados con 0). Click en chip filtra/desfiltra.
+  - **`ActionsFilters.jsx`**: 5 selects (priority, action_type, confidence, risk, relevance) + 2 switches (solo con ventas, solo en pérdida) + botón "Limpiar" cuando hay filtros activos.
+  - **`ActionDetailDrawer.jsx`**: Sheet derecho 640px con metadatos (priority, confidence, risk, score, is_recoverable_with_next_sale), targeting/customer_search_term separados, los 4 bloques pedidos (`detected_problem`, `reason`, `recommended_action`, `amazon_instruction`) + `expected_impact` y 15 métricas (impr, clicks, orders, spend, sales, cpc_real, acos, acos_pe, acos+1, clicks_pe, clicks_fase, cvr, consumo_pe, consumo_fase, beneficio_kdp).
+- **Sidebar**: nuevo item "Acciones" con icono `ListChecks` (data-testid `nav-actions`).
+- **Dashboard.jsx**: ruta `/acciones` + título "Acciones · recomendaciones priorizadas (read-only)".
+- **Tabla principal** (11 cols compactas según ajuste del usuario): prioridad (dot+label+score), acción (badge color), término+match, campaña, clicks, gasto, pedidos, beneficio_kdp, consumo_pe, consumo_fase, recommended_action+conf/riesgo, [Detalle →]. Ordenada por `priority_score desc`, tiebreak `spend desc`.
+- **Verificación con dataset real**: 16 recs, 2 Alta + 14 Baja, desglose `{LOWER_BID:2, HOLD:2, WAIT_FOR_DATA:12}`. Filtros:
+  - priority=high → 2 rows ✓
+  - clear → 16 rows ✓
+  - chip LOWER_BID → 2 rows (sincroniza select Acción) ✓
+  - Drawer mostró detected_problem + reason + recommended_action + amazon_instruction + is_recoverable_with_next_sale + 15 métricas. ✓
+- **Bug menor corregido en mismo iter**: ACoS en drawer formateaba `m.acos / 100` (dividía dos veces) — pasaba a usar `fmtPct(m.acos)` directo.
+- **READ-ONLY estricto**: cero llamadas PUT/POST/DELETE. Solo `GET /recommendations`. Sin export CSV. Sin REVIEW_CAMPAIGN/PAUSE_TARGET activos. Sin sustitución de `suggest_negative`. Patrones irrelevantes hardcoded como antes.
+- **NO tocados**: `recommendations.py`, `server.py`, `autopilot.py`, `amazon_ads.py`, `kdp_economy.py`, importador, multiplicadores, tests backend (216/216 OK regresión cero).
+
 ## Próximas fases (planificadas, NO implementadas aún)
-- **Fase 4**: ruta `/acciones` con tabla priorizada, filtros, exportaciones CSV bulk por tipo. Reglas REVIEW_CAMPAIGN (agregaciones nivel campaña) + PAUSE_TARGET (agregaciones ad_group). Decisión post-validación sobre sustituir `suggest_negative`.
-- **No urgente**: patrones irrelevantes configurables por dataset; AI-enhanced `reason` con Claude.
+- **Fase 4B (futuro)**: exportaciones CSV bulk por `action_type` (negativas, scale, lower_bid…). Decidir si sustituir `suggest_negative` legacy.
+- **Fase 4C (futuro)**: activar reglas `REVIEW_CAMPAIGN` (agregaciones nivel campaña) y `PAUSE_TARGET` (agregaciones ad_group) en `recommendations.py` con tests.
+- **No urgente**: patrones de `NEGATIVE_PHRASE_CANDIDATE` configurables por dataset; AI-enhanced `reason` con Claude.
 

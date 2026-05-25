@@ -8,6 +8,7 @@ import BookInfoPanel from "../components/BookInfoPanel";
 import KeywordsUnified from "../components/KeywordsUnified";
 import DashboardBlocks from "../components/DashboardBlocks";
 import DistributionChart from "../components/DistributionChart";
+import ActionsPage from "../components/ActionsPage";
 import { useData } from "../context/DataContext";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -59,6 +60,7 @@ const titleFor = (path) => {
   if (path.startsWith("/book")) return { t: "Libro", s: "Fase, economía e información" };
   if (path.startsWith("/keywords")) return { t: "Keywords", s: "edición inline + panel lateral" };
   if (path.startsWith("/campaigns")) return { t: "Campañas", s: "análisis agregado" };
+  if (path.startsWith("/acciones")) return { t: "Acciones", s: "recomendaciones priorizadas (read-only)" };
   return { t: "Dashboard", s: "resumen de rendimiento" };
 };
 
@@ -81,6 +83,10 @@ export default function Dashboard() {
           <Route
             path="/campaigns"
             element={active ? <CampaignsTable datasetId={active.id} /> : <Empty msg="Importa un CSV para ver campañas." />}
+          />
+          <Route
+            path="/acciones"
+            element={<ActionsPage datasetId={active?.id} />}
           />
         </Routes>
       </div>
