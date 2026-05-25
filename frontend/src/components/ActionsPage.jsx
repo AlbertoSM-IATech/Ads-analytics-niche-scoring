@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Loader2, AlertCircle, Inbox } from "lucide-react";
+import { Loader2, AlertCircle, Inbox, Download } from "lucide-react";
+import { toast } from "sonner";
 import { getRecommendations } from "../lib/api";
 import { useData } from "../context/DataContext";
 import { fmtMoney, fmtInt, getMarketplace } from "../lib/format";
 import { ACTION_LABELS, ACTION_STYLES, priorityLabel, confidenceLabel, riskLabel } from "../lib/recommendations";
+import { downloadCsv } from "../lib/exportRecommendationsCsv";
+import { Button } from "./ui/button";
 import ActionsSummary from "./ActionsSummary";
 import ActionsFilters from "./ActionsFilters";
 import ActionDetailDrawer from "./ActionDetailDrawer";
@@ -141,9 +144,27 @@ export default function ActionsPage({ datasetId }) {
 
       <ActionsFilters value={filters} onChange={setFilters} />
 
-      <div className="text-[11px] text-muted-foreground" data-testid="actions-count">
-        Mostrando <span className="num font-semibold text-foreground">{filtered.length}</span> de{" "}
-        <span className="num font-semibold text-foreground">{all.length}</span> recomendaciones
+      <div className="flex items-center justify-between gap-3 flex-wrap" data-testid="actions-toolbar">
+        <div className="text-[11px] text-muted-foreground" data-testid="actions-count">
+          Mostrando <span className="num font-semibold text-foreground">{filtered.length}</span> de{" "}
+          <span className="num font-semibold text-foreground">{all.length}</span> recomendaciones
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-md gap-1.5"
+          disabled={filtered.length === 0}
+          title={filtered.length === 0 ? "No hay acciones visibles para exportar." : undefined}
+          onClick={() => {
+            const { rows } = downloadCsv(filtered);
+            toast.success(`CSV exportado con ${rows} ${rows === 1 ? "acción" : "acciones"}.`);
+          }}
+          data-testid="export-actions-csv"
+          data-disabled={filtered.length === 0 ? "true" : "false"}
+        >
+          <Download className="size-3.5" />
+          Exportar vista actual
+        </Button>
       </div>
 
       {loading && (

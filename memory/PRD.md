@@ -238,8 +238,29 @@
   - `/acciones?action_type=BANANA` (inválido) → 16 rows, select "Todas", app no rompe. ✓
 - **NO se ha tocado**: backend, `recommendations.py`, `server.py`, `autopilot.py`, importador, kdp_economy, suggest_negative, reglas del motor. Sin export CSV. Sin nuevos KPIs.
 
+## Update 2026-05-25 (iter 18) — Fase 4B: Exportar vista actual desde /acciones
+- **Frontend puro**, sin tocar backend. `git diff backend/` vacío. 1 archivo nuevo + 1 modificado.
+- **Nuevo `/app/frontend/src/lib/exportRecommendationsCsv.js`** (puro, sin dependencias):
+  - `CSV_COLUMNS`: las 30 columnas pedidas en orden estricto, con `targeting` y `customer_search_term` separadas (índices 6 y 7).
+  - `buildCsv(recs)`: header + filas con separador `;`, BOM UTF-8 (`\ufeff`), line ending `\r\n` (RFC 4180).
+  - `defaultExportFilename()` → `publify_acciones_filtradas_YYYY-MM-DD.csv`. **No contiene `bulk`, `amazon`, ni `upload`.** Es una exportación informativa, NO un Amazon Bulk Sheet.
+  - `downloadCsv(recs, filename)`: Blob `text/csv;charset=utf-8` + `<a download>` invisible + `URL.revokeObjectURL` deferred.
+  - Escapado RFC 4180 adaptado a `;`: si el valor contiene `;`, `"`, `\n` o `\r` se envuelve entre comillas y las comillas internas se duplican.
+  - Tipos: enteros (`clicks`, `orders`), `number2` para dinero (sin moneda) y porcentajes (escala 0-100 nativa del backend), `number4` para `consumo_pe`/`consumo_fase` (decimal 0..N, NO `%`), `bool` para `is_recoverable_with_next_sale`. Null → "".
+- **`ActionsPage.jsx`**: nuevo botón "Exportar vista actual" (icono `Download`, data-testid `export-actions-csv`) en la fila del contador. `disabled` cuando `filtered.length === 0` con tooltip "No hay acciones visibles para exportar.". Toast sonner: "CSV exportado con X acciones.".
+- **Validaciones e2e cumplidas con dataset real**:
+  - Sin filtros → 16 filas exportadas, filename `publify_acciones_filtradas_2026-05-25.csv`. ✓
+  - Deep-link `?action_type=LOWER_BID` → 2 filas, ambas `action_type=LOWER_BID`. ✓
+  - Deep-link `?action_type=SCALE` (0 recs) → botón disabled (`is_disabled=true`). ✓
+  - 30 columnas, BOM UTF-8 presente, `targeting` y `customer_search_term` separados. ✓
+  - Toast confirma cantidad con singular/plural ("acción" vs "acciones"). ✓
+  - Filename NO contiene "bulk" ni "amazon". ✓
+  - Valores numéricos sin símbolo de moneda (`spend=21.06`, no `$21,06`); porcentajes como número crudo (`acos=54.04`); `consumo_pe` como decimal (`4.1375`, no `414%`). ✓
+  - Strings con `;`/`\n`/`"` escapados entre comillas correctamente. ✓
+- **NO tocados**: backend, `recommendations.py`, `server.py`, `autopilot.py`, `kdp_economy.py`, `amazon_ads.py`, importador, multiplicadores, patrones, reglas `REVIEW_CAMPAIGN`/`PAUSE_TARGET`, AI-enhanced reason. Exportaciones legacy (`/export/negatives`, `/export/autopilot`) intactas, no llamadas desde la nueva pantalla.
+
 ## Próximas fases (planificadas, NO implementadas aún)
-- **Fase 4B (futuro)**: exportaciones CSV bulk por `action_type` (negativas, scale, lower_bid…). Decidir si sustituir `suggest_negative` legacy.
+- **Fase 4C (futuro)**: activar reglas `REVIEW_CAMPAIGN` (agregación campaña) y `PAUSE_TARGET` (agregación ad_group) en `recommendations.py` con tests.
 - **Fase 4C (futuro)**: activar reglas `REVIEW_CAMPAIGN` (agregaciones nivel campaña) y `PAUSE_TARGET` (agregaciones ad_group) en `recommendations.py` con tests.
 - **No urgente**: patrones de `NEGATIVE_PHRASE_CANDIDATE` configurables por dataset; AI-enhanced `reason` con Claude.
 
