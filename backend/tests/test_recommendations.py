@@ -258,17 +258,26 @@ def test_relevance_high_blocks_automatic_negative_exact():
 
 
 # ----------------------------------------------------------------------------
-# Reserved action types: present in schema, not emitted in 3A
+# Phase 3A: these were reserved. Phase 4C activates both — see
+# test_phase4c_aggregations.py for the new positive coverage. Here we only
+# verify the schema still names them and that the simple "no campaign"
+# baseline does NOT trigger them.
 # ----------------------------------------------------------------------------
 
-def test_review_campaign_and_pause_target_are_reserved_but_not_emitted():
+def test_review_campaign_and_pause_target_action_types_remain_in_schema():
     assert "REVIEW_CAMPAIGN" in ALL_ACTIONS
     assert "PAUSE_TARGET" in ALL_ACTIONS
-    # Build many varied rows; none should emit these two reserved types.
-    rows = [make_row(orders=o, consumo_pe=c) for o in (0, 1, 5) for c in (0.3, 0.7, 0.9, 1.1, 1.5)]
+
+
+def test_pause_target_not_emitted_when_customer_search_term_set():
+    # All rows here are search-term harvests (customer_search_term==term),
+    # so PAUSE_TARGET must never fire even with extreme signals.
+    rows = [
+        make_row(orders=0, clicks=20, spend=20.0, consumo_pe=3.0, relevance="low",
+                 cpc_source="real")
+    ]
     recs = build_recommendations(rows, dataset_id="X", phase="dominio", regalia_source="kdp")
     emitted = {r.action_type for r in recs}
-    assert "REVIEW_CAMPAIGN" not in emitted
     assert "PAUSE_TARGET" not in emitted
 
 
