@@ -123,10 +123,43 @@ def test_keywords_unified_api_contract_preserved():
 
     # Rows: same length, every old field intact per row.
     assert len(current["rows"]) == len(snap["rows"]), "Row count changed!"
+
+    # Phase-dependent derived fields: excluded from byte-value comparison
+    # because they change when the dataset's `phase` configuration changes
+    # (user-controlled state, not API contract). Presence + type are still
+    # verified, and an explicit coherence assertion below checks the
+    # derivation formula `clicks_fase ≈ clicks_pe × phase_mult_used`.
+    PHASE_DERIVED_FIELDS = {"phase_mult_used", "clicks_fase", "consumo_fase"}
+
     for i, (cur, old) in enumerate(zip(current["rows"], snap["rows"])):
         for fk, fv in old.items():
             assert fk in cur, f"Row {i}: field '{fk}' was REMOVED in Phase 2!"
-            assert cur[fk] == fv, f"Row {i}: field '{fk}' value changed: {fv!r} → {cur[fk]!r}"
+            if fk in PHASE_DERIVED_FIELDS:
+                # Type contract: None stays None-or-numeric; numerics stay numeric.
+                if fv is None:
+                    assert cur[fk] is None or isinstance(cur[fk], (int, float)), (
+                        f"Row {i}: '{fk}' type degraded from None → {type(cur[fk])}"
+                    )
+                else:
+                    assert isinstance(cur[fk], (int, float)), (
+                        f"Row {i}: '{fk}' type changed: {type(fv)} → {type(cur[fk])}"
+                    )
+            else:
+                assert cur[fk] == fv, (
+                    f"Row {i}: field '{fk}' value changed: {fv!r} → {cur[fk]!r}"
+                )
+
+    # Coherence guard for phase-derived fields: when all three are present,
+    # the formula `clicks_fase = clicks_pe × phase_mult_used` must still hold.
+    # This protects the derivation logic without coupling to a specific phase.
+    for i, cur in enumerate(current["rows"]):
+        cp = cur.get("clicks_pe")
+        pm = cur.get("phase_mult_used")
+        cf = cur.get("clicks_fase")
+        if cp is not None and pm is not None and cf is not None:
+            assert abs(cf - cp * pm) < 0.01, (
+                f"Row {i}: clicks_fase {cf} != clicks_pe {cp} × phase_mult_used {pm}"
+            )
 
 
 def test_keywords_unified_adds_phase2_fields():
