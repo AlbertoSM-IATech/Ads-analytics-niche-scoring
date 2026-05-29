@@ -1224,10 +1224,18 @@ async def compare_datasets(dataset_id: str, other_id: str):
 
 @api.get("/datasets/{dataset_id}/export/negatives")
 async def export_negatives(dataset_id: str, min_clicks: int = 6):
-    """Return Amazon Bulk Sheet formatted CSV of negative keyword candidates.
-    Candidates: terms with >= min_clicks and 0 orders."""
+    """Amazon SP Bulk Sheet of negative keyword candidates.
+
+    Phase 4D.1: when economy is resolved (regalia_source != 'none'), the
+    candidates come from the deterministic engine — only terms whose
+    action_type is NEGATIVE_EXACT_CANDIDATE / NEGATIVE_PHRASE_CANDIDATE are
+    exported. Otherwise the legacy heuristic (clicks >= min_clicks AND
+    orders == 0) stays active as the fallback.
+    """
     doc = await db.datasets.find_one(
-        {"id": dataset_id}, {"_id": 0, "rows": 1, "overrides": 1}
+        {"id": dataset_id},
+        {"_id": 0, "rows": 1, "overrides": 1, "book_economy": 1,
+         "marketplace": 1, "phase": 1},
     )
     if not doc:
         raise HTTPException(status_code=404, detail="Dataset no encontrado")
@@ -1238,6 +1246,68 @@ async def export_negatives(dataset_id: str, min_clicks: int = 6):
     overrides = doc.get("overrides", {}) or {}
     key = "customer_search_term" if any(r.get("customer_search_term") for r in rows) else "targeting"
     merged = _merge_rows_with_overrides(rows, overrides, key)
+
+    # Resolve economy to decide engine vs legacy mode.
+    eco = doc.get("book_economy") or {}
+    mp = doc.get("marketplace") or "COM"
+    regalia_info = resolve_regalia_neta(eco, mp)
+    use_engine = regalia_info["source"] != "none"
+
+    # Engine-derived negative set (only when economy is resolved).
+    engine_neg_terms: set[str] = set()
+    engine_match_type: dict[str, str] = {}
+    if use_engine:
+        from recommendations import build_recommendations
+        phase = doc.get("phase") or "dominio"
+        multipliers = {
+            "mult_lanzamiento": float(eco.get("mult_lanzamiento") or 1.7),
+            "mult_dominio":     float(eco.get("mult_dominio") or 1.2),
+            "mult_beneficio":   float(eco.get("mult_beneficio") or 0.5),
+        }
+        cpc_referencia = eco.get("cpc_referencia")
+        from acos_calc import acos_actual_pct as _acos_pct
+        engine_rows = []
+        for r in merged:
+            spend_v = r.get("spend") or 0
+            sales_v = r.get("sales") or 0
+            econ = compute_row_econ(
+                clicks=r.get("clicks") or 0, spend=spend_v,
+                orders=r.get("orders") or 0, sales=sales_v,
+                regalia_neta=regalia_info["regalia_neta"], pvp=regalia_info["pvp"],
+                cpc_referencia=cpc_referencia,
+                phase=phase, multipliers=multipliers,
+            )
+            engine_rows.append({
+                "term": r.get(key) or "—",
+                "campaign": r.get("campaign"),
+                "match_type": r.get("match_type"),
+                "customer_search_term": r.get("customer_search_term"),
+                "targeting": r.get("targeting"),
+                "relevance": r.get("relevance") or "unreviewed",
+                "clicks": r.get("clicks") or 0,
+                "orders": r.get("orders") or 0,
+                "spend": spend_v,
+                "sales": sales_v,
+                "cvr": (r.get("orders") or 0) / (r.get("clicks") or 1) * 100 if (r.get("clicks") or 0) > 0 else 0.0,
+                "acos_actual": _acos_pct(spend_v, sales_v) or 0.0,
+                "regalia_source": regalia_info["source"],
+                **econ,
+            })
+        recs = build_recommendations(
+            engine_rows, dataset_id=dataset_id, phase=phase,
+            regalia_source=regalia_info["source"],
+        )
+        for rec in recs:
+            if rec.term and rec.action_type in (
+                "NEGATIVE_EXACT_CANDIDATE", "NEGATIVE_PHRASE_CANDIDATE"
+            ):
+                engine_neg_terms.add(rec.term)
+                engine_match_type[rec.term] = (
+                    "negativePhrase"
+                    if rec.action_type == "NEGATIVE_PHRASE_CANDIDATE"
+                    else "negativeExact"
+                )
+
     buf = StringIO()
     writer = csv.writer(buf)
     # Amazon SP Bulk Sheet header (simplified for negative keywords)
@@ -1247,15 +1317,24 @@ async def export_negatives(dataset_id: str, min_clicks: int = 6):
     ])
     for r in merged:
         term = r.get(key) or ""
-        clicks = r.get("clicks", 0) or 0
-        orders = r.get("orders", 0) or 0
-        if clicks >= min_clicks and orders == 0 and term:
-            writer.writerow([
-                "Sponsored Products", "Negative Keyword", "Create",
-                "", "",
-                r.get("campaign") or "", "",
-                "negativeExact", term,
-            ])
+        if not term:
+            continue
+        if use_engine:
+            if term not in engine_neg_terms:
+                continue
+            mt = engine_match_type.get(term, "negativeExact")
+        else:
+            clicks = r.get("clicks", 0) or 0
+            orders = r.get("orders", 0) or 0
+            if not (clicks >= min_clicks and orders == 0):
+                continue
+            mt = "negativeExact"
+        writer.writerow([
+            "Sponsored Products", "Negative Keyword", "Create",
+            "", "",
+            r.get("campaign") or "", "",
+            mt, term,
+        ])
     content = buf.getvalue()
     return Response(
         content=content, media_type="text/csv",
