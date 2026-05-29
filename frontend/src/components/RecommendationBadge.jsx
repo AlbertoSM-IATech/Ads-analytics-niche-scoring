@@ -47,20 +47,26 @@ export function RecommendationBadge({ rec, testidSuffix }) {
             {label}
           </span>
         </TooltipTrigger>
-        <TooltipContent className="max-w-xs text-xs space-y-1">
-          <div className="font-semibold">{label}</div>
+        <TooltipContent
+          side="top"
+          align="start"
+          sideOffset={8}
+          collisionPadding={12}
+          className="z-[60] max-w-[320px] rounded-md border border-border bg-popover text-popover-foreground px-3 py-2 text-xs shadow-lg space-y-1.5"
+        >
+          <div className="font-semibold text-foreground">{label}</div>
           {rec.detected_problem && (
-            <div className="text-muted-foreground italic">{rec.detected_problem}</div>
+            <div className="text-muted-foreground italic leading-snug">{rec.detected_problem}</div>
           )}
-          {rec.reason && <div>{rec.reason}</div>}
-          <div className="text-muted-foreground text-[10px] flex gap-2 pt-1 border-t border-border/40">
-            <span>Confianza: {confidenceLabel(rec.confidence)}</span>
+          {rec.reason && <div className="leading-snug text-foreground/90">{rec.reason}</div>}
+          <div className="text-muted-foreground text-[10px] flex flex-wrap gap-x-2 gap-y-0.5 pt-1.5 border-t border-border">
+            <span>Confianza: <span className="text-foreground/90">{confidenceLabel(rec.confidence)}</span></span>
             <span>·</span>
-            <span>Riesgo: {riskLabel(rec.risk)}</span>
+            <span>Riesgo: <span className="text-foreground/90">{riskLabel(rec.risk)}</span></span>
             <span>·</span>
-            <span className="num">Score {score}</span>
+            <span className="num">Score <span className="text-foreground/90">{score}</span></span>
           </div>
-          <div className="text-coral text-[10px] pt-1 border-t border-border/40">
+          <div className="text-[10px] pt-1 border-t border-border text-coral">
             Click → ver todas las acciones «{label}»
           </div>
         </TooltipContent>

@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
-import { BookOpen, Upload, Target, ListChecks, Download, ArrowRight } from "lucide-react";
+import { BookOpen, Upload, Target, ListChecks, Download, ArrowRight, ChevronDown, ChevronRight, Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
 
 const STEPS = [
   {
@@ -49,48 +50,77 @@ const STEPS = [
   },
 ];
 
-export default function GettingStartedCard() {
+const STORAGE_KEY = "pn.gettingStarted.collapsed";
+
+export default function GettingStartedCard({ defaultOpen = true, compact = false }) {
+  const initial = (() => {
+    if (compact) return false;
+    try {
+      const v = localStorage.getItem(STORAGE_KEY);
+      if (v === "1") return false;
+      if (v === "0") return true;
+    } catch { /* SSR / private mode */ }
+    return defaultOpen;
+  })();
+  const [open, setOpen] = useState(initial);
+  useEffect(() => {
+    if (compact) return;
+    try { localStorage.setItem(STORAGE_KEY, open ? "0" : "1"); } catch { /* ignore */ }
+  }, [open, compact]);
+
   return (
     <section
-      className="border border-border rounded-lg bg-card p-5 space-y-4"
+      className="border border-border rounded-lg bg-card overflow-hidden"
       data-testid="getting-started-card"
     >
-      <header className="space-y-1">
-        <h2 className="font-heading text-xl font-semibold">Primeros pasos</h2>
-        <p className="text-sm text-muted-foreground">
-          Sigue este flujo para sacar el máximo del módulo Ads + KDP Economy.
-        </p>
-      </header>
-      <ol className="grid md:grid-cols-2 gap-3">
-        {STEPS.map((s) => {
-          const Icon = s.icon;
-          return (
-            <li
-              key={s.n}
-              className="border border-border rounded-md p-4 bg-background flex items-start gap-3"
-              data-testid={s.testid}
-            >
-              <div className="size-8 rounded-full bg-coral/10 text-coral flex items-center justify-center shrink-0 font-semibold num">
-                {s.n}
-              </div>
-              <div className="flex-1 min-w-0 space-y-2">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <Icon className="size-4 text-coral shrink-0" />
-                  <span className="truncate">{s.title}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">{s.desc}</p>
-                <NavLink
-                  to={s.to}
-                  className="inline-flex items-center gap-1 text-xs text-coral hover:underline"
-                  data-testid={`${s.testid}-link`}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-3 px-5 py-3 text-left hover:bg-muted/30 transition-colors"
+        data-testid="getting-started-toggle"
+        aria-expanded={open}
+      >
+        <div className="flex items-center gap-2">
+          <Sparkles className="size-4 text-coral" />
+          <h2 className="font-heading text-base font-semibold">Guía rápida · Primeros pasos</h2>
+          <span className="text-xs text-muted-foreground hidden sm:inline">5 pasos para sacar partido al módulo</span>
+        </div>
+        {open ? <ChevronDown className="size-4 text-muted-foreground" /> : <ChevronRight className="size-4 text-muted-foreground" />}
+      </button>
+      {open && (
+        <div className="px-5 pb-5 pt-1 space-y-3" data-testid="getting-started-body">
+          <ol className="grid md:grid-cols-2 gap-3">
+            {STEPS.map((s) => {
+              const Icon = s.icon;
+              return (
+                <li
+                  key={s.n}
+                  className="border border-border rounded-md p-4 bg-background flex items-start gap-3"
+                  data-testid={s.testid}
                 >
-                  {s.cta} <ArrowRight className="size-3" />
-                </NavLink>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+                  <div className="size-8 rounded-full bg-coral/10 text-coral flex items-center justify-center shrink-0 font-semibold num">
+                    {s.n}
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                      <Icon className="size-4 text-coral shrink-0" />
+                      <span className="truncate">{s.title}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{s.desc}</p>
+                    <NavLink
+                      to={s.to}
+                      className="inline-flex items-center gap-1 text-xs text-coral hover:underline"
+                      data-testid={`${s.testid}-link`}
+                    >
+                      {s.cta} <ArrowRight className="size-3" />
+                    </NavLink>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      )}
     </section>
   );
 }

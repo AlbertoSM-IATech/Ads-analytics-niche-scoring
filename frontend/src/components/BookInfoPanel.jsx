@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useData } from "../context/DataContext";
-import { updateBook, setPhase } from "../lib/api";
+import { updateBook, setPhase, getEconomyDiagnosis } from "../lib/api";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
-import { BookOpen, Save, Scale, Rocket, Crown, DollarSign, RotateCcw } from "lucide-react";
+import { BookOpen, Save, Scale, Rocket, Crown, DollarSign, RotateCcw, Info } from "lucide-react";
 import { fmtPct, getMarketplace } from "../lib/format";
 import { toast } from "sonner";
 import { InfoTooltip } from "./InfoTooltip";
@@ -37,6 +37,20 @@ export default function BookInfoPanel() {
   const [eco, setEco] = useState(DEFAULT_ECO);
   const [phase, setPhaseLocal] = useState("dominio");
   const [saving, setSaving] = useState(false);
+  // Phase P0: read KDP-resolved royalty so the legacy "Economía del libro"
+  // block stays subordinate when a full KDP config exists.
+  const [diag, setDiag] = useState(null);
+
+  useEffect(() => {
+    if (!active) { setDiag(null); return; }
+    getEconomyDiagnosis(active.id)
+      .then((r) => setDiag(r.data))
+      .catch(() => setDiag(null));
+  }, [active]);
+
+  const kdpRegalia = diag?.mode === "kdp" ? diag.outputs?.regalia_neta : null;
+  const kdpAcosPe = diag?.mode === "kdp" ? diag.outputs?.acos_pe : null;
+  const kdpIsAuthoritative = kdpRegalia != null && kdpAcosPe != null;
 
   useEffect(() => {
     if (!active) return;
@@ -204,26 +218,71 @@ export default function BookInfoPanel() {
 
         <div className="space-y-4">
           <div className="border border-border rounded-lg bg-card p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <Scale className="size-5 text-coral" />
-              <h3 className="font-heading text-lg font-semibold">Economía del libro</h3>
+            <div className="flex items-center gap-2 justify-between flex-wrap">
+              <div className="flex items-center gap-2">
+                <Scale className="size-5 text-coral" />
+                <h3 className="font-heading text-lg font-semibold">Economía del libro</h3>
+              </div>
+              {kdpIsAuthoritative && (
+                <span
+                  className="text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400 font-semibold inline-flex items-center gap-1"
+                  data-testid="kdp-authoritative-tag"
+                >
+                  KDP oficial
+                </span>
+              )}
             </div>
+            {kdpIsAuthoritative && (
+              <div
+                className="rounded-md border border-sky-300/60 bg-sky-50 dark:bg-sky-500/10 dark:border-sky-500/30 px-3 py-2 text-xs text-sky-900 dark:text-sky-200 flex items-start gap-2"
+                data-testid="kdp-authoritative-banner"
+              >
+                <Info className="size-3.5 shrink-0 mt-0.5" />
+                <span>
+                  Valor oficial calculado desde Configuración KDP. La economía manual queda como fallback legacy.
+                </span>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Precio ({sym})</Label>
                 <Input type="number" min={0} step={0.01} value={eco.precio_libro} onChange={(e) => setEco({ ...eco, precio_libro: e.target.value })} className="rounded-md mt-1 num" data-testid="book-price" />
               </div>
               <div>
-                <Label className="text-xs">Regalías por venta ({sym})</Label>
-                <Input type="number" min={0} step={0.01} value={eco.regalias_por_venta} onChange={(e) => setEco({ ...eco, regalias_por_venta: e.target.value })} className="rounded-md mt-1 num" data-testid="book-royalties" />
+                <Label className="text-xs flex items-center gap-1">
+                  Regalías por venta ({sym})
+                  {kdpIsAuthoritative && (
+                    <span className="text-[10px] text-muted-foreground italic">· auto desde KDP</span>
+                  )}
+                </Label>
+                {kdpIsAuthoritative ? (
+                  <Input
+                    type="number"
+                    value={kdpRegalia.toFixed(2)}
+                    readOnly
+                    disabled
+                    className="rounded-md mt-1 num bg-muted/40 cursor-not-allowed"
+                    data-testid="book-royalties"
+                    data-source="kdp"
+                    title="Calculado automáticamente desde Configuración KDP. Para cambiarlo, edita los inputs de KDP Economy abajo."
+                  />
+                ) : (
+                  <Input type="number" min={0} step={0.01} value={eco.regalias_por_venta} onChange={(e) => setEco({ ...eco, regalias_por_venta: e.target.value })} className="rounded-md mt-1 num" data-testid="book-royalties" data-source="legacy" />
+                )}
               </div>
             </div>
-            <div className="bg-coral/10 border border-coral/30 rounded-md p-4" data-testid="acos-equilibrio">
-              <div className="text-[10px] uppercase tracking-widest text-coral-700 dark:text-coral-300 font-semibold">
-                ACoS de Equilibrio (PE)
+            {!kdpIsAuthoritative && (
+              <div className="text-[10px] text-muted-foreground italic">
+                Cálculo manual aproximado. Para mayor precisión, configura el bloque "Configuración económica KDP" abajo.
               </div>
-              <div className="num text-3xl font-bold text-coral mt-1">
-                {pe == null ? "—" : fmtPct(pe)}
+            )}
+            <div className="bg-coral/10 border border-coral/30 rounded-md p-4" data-testid="acos-equilibrio">
+              <div className="text-[10px] uppercase tracking-widest text-coral-700 dark:text-coral-300 font-semibold inline-flex items-center gap-1">
+                ACoS de Equilibrio (PE)
+                {kdpIsAuthoritative && <span className="text-emerald-600 dark:text-emerald-400 normal-case tracking-normal">· KDP oficial</span>}
+              </div>
+              <div className="num text-3xl font-bold text-coral mt-1" data-testid="acos-pe-value">
+                {kdpIsAuthoritative ? fmtPct(kdpAcosPe) : (pe == null ? "—" : fmtPct(pe))}
               </div>
               <div className="text-xs text-muted-foreground mt-1">Por encima pierdes dinero por cada venta.</div>
             </div>

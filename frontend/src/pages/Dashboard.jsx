@@ -52,7 +52,7 @@ function DashboardView() {
     : null;
   return (
     <div className="space-y-6 animate-fade-in" data-testid="view-dashboard">
-      {!active && <GettingStartedCard />}
+      <GettingStartedCard defaultOpen={!active} />
       <KpiGrid kpis={active?.kpis} acosEquilibrio={pe} />
       {active && (
         <>
