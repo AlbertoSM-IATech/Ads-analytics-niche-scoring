@@ -5,8 +5,10 @@ import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { fmtInt, fmtPct, fmtMoney, getMarketplace } from "../lib/format";
-import { ArrowDownUp, AlertCircle, Plus, MoreHorizontal, Check, X, Pencil, Download, Ban } from "lucide-react";
+import { ArrowDownUp, AlertCircle, Plus, MoreHorizontal, Check, X, Pencil, Download, Ban, Filter } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import KeywordDetailSheet from "./KeywordDetailSheet";
 import AddKeywordWizard from "./AddKeywordWizard";
@@ -14,7 +16,7 @@ import AddCampaignWizard from "./AddCampaignWizard";
 import MultiCampaignCell from "./MultiCampaignCell";
 import { InfoTooltip } from "./InfoTooltip";
 import { getRelevanceDot } from "../lib/relevance";
-import { mapRecommendationsByTerm, findRecForRow } from "../lib/recommendations";
+import { mapRecommendationsByTerm, findRecForRow, ACTION_LABELS } from "../lib/recommendations";
 import { RecommendationBadge } from "./RecommendationBadge";
 import { toast } from "sonner";
 
@@ -25,29 +27,30 @@ const BADGE_STYLES = {
   "sin-datos": { cls: "bg-neutral-100 text-neutral-600 border-neutral-200 dark:bg-neutral-700/40 dark:text-neutral-400 dark:border-neutral-600", label: "Sin datos", tip: "badge_sin_datos" },
 };
 
-const editableKeys = new Set(["clicks", "impressions", "cpc", "spend", "orders", "sales"]);
-
+// Phase UX-2.4 — compact "decision-first" column set. Heavy operational fields
+// (impressions/clicks/cpc/spend/sales/orders/ctr/cvr/badges/notes) now live in
+// the side panel only.
 const cols = [
   { k: "term", label: "Término" },
   { k: "campaign", label: "Campañas" },
   { k: "match_type", label: "Match" },
-  { k: "impressions", label: "Impr." },
-  { k: "clicks", label: "Clicks" },
-  { k: "ctr", label: "CTR", tip: "ctr" },
-  { k: "cpc", label: "CPC", tip: "cpc" },
-  { k: "spend", label: "Gasto" },
-  { k: "sales", label: "Ventas" },
-  { k: "orders", label: "Ped." },
-  { k: "cvr", label: "CVR", tip: "cvr" },
   { k: "acos_actual", label: "ACoS", tip: "acos" },
   { k: "acos_siguiente", label: "ACoS +1", tip: "acos_siguiente" },
   { k: "clicks_pe", label: "Clicks PE", tip: "clicks_pe" },
-  { k: "consumo_fase", label: "Consumo fase", tip: "consumo_fase" },
+  { k: "consumo_fase", label: "Estado", tip: "consumo_fase" },
   { k: "beneficio_kdp", label: "Beneficio KDP", tip: "beneficio_kdp" },
-  { k: "badge", label: "Estado" },
-  { k: "suggest_negative", label: "Neg.", tip: "suggest_negative" },
   { k: "_act", label: "" },
 ];
+
+const ALL = "__all__";
+const ACTION_OPTIONS = [
+  "WAIT_FOR_DATA", "OBSERVE", "LOWER_BID", "HOLD", "SCALE",
+  "MOVE_TO_EXACT", "NEGATIVE_EXACT_CANDIDATE", "NEGATIVE_PHRASE_CANDIDATE",
+  "REVIEW_CAMPAIGN", "PAUSE_TARGET",
+];
+const RELEVANCE_OPTIONS = ["unreviewed", "high", "medium", "low"];
+const RELEVANCE_LABEL = { unreviewed: "Sin revisar", high: "Alta", medium: "Media", low: "Baja" };
+const MATCH_OPTIONS = ["exact", "phrase", "broad", "auto", "asin", "category"];
 
 // Color for "Consumo fase": <50% verde, 50-80% amber, 80-100% naranja, >100% rojo.
 function consumoFaseClass(v) {
@@ -149,6 +152,15 @@ export default function KeywordsUnified({ datasetId }) {
   const [q, setQ] = useState("");
   const [filterBadge, setFilterBadge] = useState(location.state?.filterBadge || null);
   const [onlyNegatives, setOnlyNegatives] = useState(false);
+  // Phase UX-2.5 — extra filters
+  const [fActionType, setFActionType] = useState("");
+  const [fRelevance, setFRelevance] = useState("");
+  const [fCampaign, setFCampaign] = useState("");
+  const [fMatch, setFMatch] = useState("");
+  const [fOnlyWithOrders, setFOnlyWithOrders] = useState(false);
+  const [fOnlyWithoutOrders, setFOnlyWithoutOrders] = useState(false);
+  const [fOnlyNegativeProfit, setFOnlyNegativeProfit] = useState(false);
+  const [fOnlyConsumoOver100, setFOnlyConsumoOver100] = useState(false);
   const [sortKey, setSortKey] = useState("spend");
   const [sortDir, setSortDir] = useState("desc");
   const [selectedTerm, setSelectedTerm] = useState(null);
@@ -181,6 +193,28 @@ export default function KeywordsUnified({ datasetId }) {
     let arr = data.rows.filter((r) => (r.term || "").toLowerCase().includes(q.toLowerCase()));
     if (filterBadge) arr = arr.filter((r) => r.badge === filterBadge);
     if (onlyNegatives) arr = arr.filter((r) => r.suggest_negative);
+    // Phase UX-2.5 — extra filters
+    if (fActionType) {
+      arr = arr.filter((r) => {
+        const rec = findRecForRow(recsMap, r);
+        return rec && rec.action_type === fActionType;
+      });
+    }
+    if (fRelevance) arr = arr.filter((r) => (r.relevance || "unreviewed") === fRelevance);
+    if (fCampaign) {
+      arr = arr.filter((r) =>
+        (r.campaigns && r.campaigns.includes(fCampaign)) || r.campaign === fCampaign
+      );
+    }
+    if (fMatch) arr = arr.filter((r) => (r.match_type || "").toLowerCase() === fMatch);
+    if (fOnlyWithOrders) arr = arr.filter((r) => (r.orders || 0) > 0);
+    if (fOnlyWithoutOrders) arr = arr.filter((r) => (r.orders || 0) === 0);
+    if (fOnlyNegativeProfit) {
+      arr = arr.filter((r) => r.beneficio_kdp != null && r.beneficio_kdp < 0);
+    }
+    if (fOnlyConsumoOver100) {
+      arr = arr.filter((r) => r.consumo_pe != null && r.consumo_pe > 1.0);
+    }
     arr.sort((a, b) => {
       const av = a[sortKey] ?? 0; const bv = b[sortKey] ?? 0;
       if (typeof av === "number" || typeof bv === "number") {
@@ -191,7 +225,20 @@ export default function KeywordsUnified({ datasetId }) {
         : String(bv).localeCompare(String(av));
     });
     return arr;
-  }, [data, q, filterBadge, onlyNegatives, sortKey, sortDir]);
+  }, [data, q, filterBadge, onlyNegatives, sortKey, sortDir, recsMap,
+      fActionType, fRelevance, fCampaign, fMatch, fOnlyWithOrders,
+      fOnlyWithoutOrders, fOnlyNegativeProfit, fOnlyConsumoOver100]);
+
+  const activeFilterCount =
+    (fActionType ? 1 : 0) + (fRelevance ? 1 : 0) + (fCampaign ? 1 : 0) +
+    (fMatch ? 1 : 0) + (fOnlyWithOrders ? 1 : 0) + (fOnlyWithoutOrders ? 1 : 0) +
+    (fOnlyNegativeProfit ? 1 : 0) + (fOnlyConsumoOver100 ? 1 : 0);
+
+  const clearExtraFilters = () => {
+    setFActionType(""); setFRelevance(""); setFCampaign(""); setFMatch("");
+    setFOnlyWithOrders(false); setFOnlyWithoutOrders(false);
+    setFOnlyNegativeProfit(false); setFOnlyConsumoOver100(false);
+  };
 
   const toggleSort = (k) => {
     if (sortKey === k) setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -291,6 +338,89 @@ export default function KeywordsUnified({ datasetId }) {
               </span>
             )}
           </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-md"
+                data-testid="open-filters-popover"
+              >
+                <Filter className="size-3.5 mr-1" />
+                Filtros
+                {activeFilterCount > 0 && (
+                  <span className="ml-1.5 num text-[10px] px-1.5 rounded bg-coral/15 text-coral" data-testid="active-filters-count">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[340px] p-4 space-y-3" align="end" data-testid="filters-popover">
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">Recomendación</Label>
+                <Select value={fActionType || ALL} onValueChange={(v) => setFActionType(v === ALL ? "" : v)}>
+                  <SelectTrigger className="h-8 rounded-md text-xs" data-testid="kw-filter-action"><SelectValue placeholder="Todas" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL}>Todas</SelectItem>
+                    {ACTION_OPTIONS.map((a) => <SelectItem key={a} value={a}>{ACTION_LABELS[a]}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">Relevancia</Label>
+                <Select value={fRelevance || ALL} onValueChange={(v) => setFRelevance(v === ALL ? "" : v)}>
+                  <SelectTrigger className="h-8 rounded-md text-xs" data-testid="kw-filter-relevance"><SelectValue placeholder="Todas" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL}>Todas</SelectItem>
+                    {RELEVANCE_OPTIONS.map((r) => <SelectItem key={r} value={r}>{RELEVANCE_LABEL[r]}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">Campaña</Label>
+                <Select value={fCampaign || ALL} onValueChange={(v) => setFCampaign(v === ALL ? "" : v)}>
+                  <SelectTrigger className="h-8 rounded-md text-xs" data-testid="kw-filter-campaign"><SelectValue placeholder="Todas" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL}>Todas</SelectItem>
+                    {allCampaigns.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">Match</Label>
+                <Select value={fMatch || ALL} onValueChange={(v) => setFMatch(v === ALL ? "" : v)}>
+                  <SelectTrigger className="h-8 rounded-md text-xs" data-testid="kw-filter-match"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL}>Todos</SelectItem>
+                    {MATCH_OPTIONS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5 pt-2 border-t border-border">
+                <label className="flex items-center justify-between text-xs gap-2 cursor-pointer">
+                  <span>Solo con pedidos</span>
+                  <Switch checked={fOnlyWithOrders} onCheckedChange={(v) => { setFOnlyWithOrders(v); if (v) setFOnlyWithoutOrders(false); }} data-testid="kw-filter-with-orders" />
+                </label>
+                <label className="flex items-center justify-between text-xs gap-2 cursor-pointer">
+                  <span>Solo sin pedidos</span>
+                  <Switch checked={fOnlyWithoutOrders} onCheckedChange={(v) => { setFOnlyWithoutOrders(v); if (v) setFOnlyWithOrders(false); }} data-testid="kw-filter-without-orders" />
+                </label>
+                <label className="flex items-center justify-between text-xs gap-2 cursor-pointer">
+                  <span>Solo beneficio KDP negativo</span>
+                  <Switch checked={fOnlyNegativeProfit} onCheckedChange={setFOnlyNegativeProfit} data-testid="kw-filter-negative-profit" />
+                </label>
+                <label className="flex items-center justify-between text-xs gap-2 cursor-pointer">
+                  <span>Solo consumo PE &gt; 100%</span>
+                  <Switch checked={fOnlyConsumoOver100} onCheckedChange={setFOnlyConsumoOver100} data-testid="kw-filter-consumo-over" />
+                </label>
+              </div>
+              {activeFilterCount > 0 && (
+                <Button variant="outline" size="sm" onClick={clearExtraFilters} className="w-full rounded-md gap-1.5" data-testid="kw-filters-clear">
+                  <X className="size-3.5" /> Limpiar filtros
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
         <div className="flex items-center gap-3">
           {pe != null && (
@@ -383,26 +513,6 @@ export default function KeywordsUnified({ datasetId }) {
                   <td className="px-3 py-2">
                     <EditableText value={r.match_type} onSave={(v) => saveCell(r.term, "match_type", v)} testid={`edit-match-${i}`} placeholder="—" />
                   </td>
-                  <td className="px-3 py-2 num text-right">
-                    <EditableCell value={r.impressions} integer onSave={(v) => saveCell(r.term, "impressions", v)} testid={`edit-impr-${i}`} />
-                  </td>
-                  <td className="px-3 py-2 num text-right">
-                    <EditableCell value={r.clicks} integer onSave={(v) => saveCellWithAutoSpend(r.term, "clicks", v, r.cpc)} testid={`edit-clicks-${i}`} />
-                  </td>
-                  <td className="px-3 py-2 num text-right">{fmtPct(r.ctr)}</td>
-                  <td className="px-3 py-2 num text-right">
-                    <EditableCell value={r.cpc} onSave={(v) => saveCellWithAutoSpend(r.term, "cpc", v, r.clicks)} testid={`edit-cpc-${i}`} />
-                  </td>
-                  <td className="px-3 py-2 num text-right">
-                    <EditableCell value={r.spend} onSave={(v) => saveCell(r.term, "spend", v)} testid={`edit-spend-${i}`} />
-                  </td>
-                  <td className="px-3 py-2 num text-right">
-                    <EditableCell value={r.sales} onSave={(v) => saveCell(r.term, "sales", v)} testid={`edit-sales-${i}`} />
-                  </td>
-                  <td className="px-3 py-2 num text-right">
-                    <EditableCell value={r.orders} integer onSave={(v) => saveCell(r.term, "orders", v)} testid={`edit-orders-${i}`} />
-                  </td>
-                  <td className="px-3 py-2 num text-right">{fmtPct(r.cvr)}</td>
                   <td className={`px-3 py-2 num text-right ${acosColor(r.acos_actual)}`}>
                     {r.acos_actual == null ? "—" : fmtPct(r.acos_actual)}
                   </td>
@@ -426,47 +536,16 @@ export default function KeywordsUnified({ datasetId }) {
                       </span>
                     )}
                   </td>
-                  <td className={`px-3 py-2 num text-right ${consumoFaseClass(r.consumo_fase)}`} data-testid={`kw-consumo-fase-${i}`}>
+                  <td className={`px-3 py-2 num text-right ${consumoFaseClass(r.consumo_fase)}`} data-testid={`kw-consumo-fase-${i}`} title={`Badge: ${b.label}`}>
                     {r.consumo_fase == null ? "—" : `${(r.consumo_fase * 100).toFixed(0)}%`}
                   </td>
                   <td className={`px-3 py-2 num text-right ${r.beneficio_kdp != null && r.beneficio_kdp < 0 ? "text-destructive" : (r.beneficio_kdp != null && r.beneficio_kdp > 0 ? "text-green-600 dark:text-green-400" : "")}`} data-testid={`kw-beneficio-kdp-${i}`}>
                     {r.beneficio_kdp == null ? (
-                      // Fallback to legacy gross when no economy is configured.
                       r.beneficio_ahora == null
                         ? <span className="text-muted-foreground/40">—</span>
                         : <span className="text-muted-foreground" title="Sales − Spend (bruto). Configura la economía del libro para ver beneficio KDP real.">{fmtMoney(r.beneficio_ahora, sym)}</span>
                     ) : (
                       fmtMoney(r.beneficio_kdp, sym)
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span className={`badge-pill ${b.cls}`} data-testid={`kw-badge-${i}`}>
-                      {b.label}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2">
-                    {negative ? (
-                      hasEngineRec ? (
-                        <span
-                          className="text-[10px] text-muted-foreground italic"
-                          title="Regla legacy también la marcaría como negativa (≥6 clicks, 0 ventas). El motor de recomendaciones tiene prioridad cuando está disponible."
-                          data-testid={`neg-badge-${i}`}
-                          data-legacy-mode="secondary"
-                        >
-                          legacy: sugerida
-                        </span>
-                      ) : (
-                        <span
-                          className="badge-pill bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/30 inline-flex items-center gap-1"
-                          title="Regla legacy: basada solo en clicks y pedidos (≥6 clicks, 0 ventas). El motor de recomendaciones tiene prioridad cuando está disponible. Revisión recomendada con el motor nuevo cuando haya datos económicos."
-                          data-testid={`neg-badge-${i}`}
-                          data-legacy-mode="primary"
-                        >
-                          <Ban className="size-3" /> Sugerida
-                        </span>
-                      )
-                    ) : (
-                      <span className="text-muted-foreground/40 text-xs">—</span>
                     )}
                   </td>
                   <td className="px-3 py-2">
