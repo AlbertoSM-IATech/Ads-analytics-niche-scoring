@@ -785,6 +785,27 @@ async def get_keywords_unified(dataset_id: str):
             "regalia_source": regalia_info["source"],
         })
     # Group summary for dashboard blocks
+    # Phase 4D — engine-derived suggest_negative (Opción B con fallback legacy).
+    # When economy is resolved (regalia_source != "none"), the deterministic
+    # engine becomes the single source of truth for negatives: only
+    # NEGATIVE_EXACT_CANDIDATE and NEGATIVE_PHRASE_CANDIDATE flip the flag on.
+    # Otherwise (no economy) the legacy heuristic (clicks≥6, orders=0) stays
+    # active per-row as the fallback.
+    if regalia_info["source"] != "none":
+        from recommendations import build_recommendations
+        _NEG_ACTIONS = {"NEGATIVE_EXACT_CANDIDATE", "NEGATIVE_PHRASE_CANDIDATE"}
+        # build_recommendations needs `regalia_source` per row; out_rows already
+        # carries it (set above via `regalia_info["source"]`).
+        _engine = build_recommendations(
+            out_rows, dataset_id=dataset_id, phase=phase_global,
+            regalia_source=regalia_info["source"],
+        )
+        _engine_by_term = {r.term: r.action_type for r in _engine if r.term}
+        for r in out_rows:
+            at = _engine_by_term.get(r["term"])
+            # term not in map → campaign-level rec only or no rec → False.
+            r["suggest_negative"] = bool(at in _NEG_ACTIONS)
+
     summary = {"bajo-pe": 0, "recuperable": 0, "en-perdida": 0, "sin-datos": 0, "negativas": 0}
     for r in out_rows:
         summary[r["badge"]] = summary.get(r["badge"], 0) + 1
