@@ -131,27 +131,44 @@ def test_keywords_unified_api_contract_preserved():
     # derivation formula `clicks_fase ≈ clicks_pe × phase_mult_used`.
     PHASE_DERIVED_FIELDS = {"phase_mult_used", "clicks_fase", "consumo_fase"}
 
+    # CPC-resolution-dependent derived fields: only relaxed for rows where the
+    # backend resolved a NON-real CPC (cpc_source != "real"), because in that
+    # case the values depend on `book_economy.cpc_referencia`, which is also
+    # user-editable state — not an API contract. Rows with `cpc_source=="real"`
+    # remain strictly byte-compared (the majority in the live dataset).
+    CPC_RESOLUTION_DERIVED = {
+        "clicks_pe", "consumo_pe", "clicks_fase", "consumo_fase",
+        "acos_siguiente_con_venta",
+    }
+
+    def _assert_numeric_type(val_old, val_new, *, where):
+        if val_old is None:
+            assert val_new is None or isinstance(val_new, (int, float)), (
+                f"{where}: type degraded from None → {type(val_new)}"
+            )
+        else:
+            assert isinstance(val_new, (int, float)), (
+                f"{where}: type changed: {type(val_old)} → {type(val_new)}"
+            )
+
     for i, (cur, old) in enumerate(zip(current["rows"], snap["rows"])):
+        cpc_source_cur = cur.get("cpc_source")
         for fk, fv in old.items():
             assert fk in cur, f"Row {i}: field '{fk}' was REMOVED in Phase 2!"
-            if fk in PHASE_DERIVED_FIELDS:
-                # Type contract: None stays None-or-numeric; numerics stay numeric.
-                if fv is None:
-                    assert cur[fk] is None or isinstance(cur[fk], (int, float)), (
-                        f"Row {i}: '{fk}' type degraded from None → {type(cur[fk])}"
-                    )
-                else:
-                    assert isinstance(cur[fk], (int, float)), (
-                        f"Row {i}: '{fk}' type changed: {type(fv)} → {type(cur[fk])}"
-                    )
+            relax = (
+                fk in PHASE_DERIVED_FIELDS
+                or (fk in CPC_RESOLUTION_DERIVED and cpc_source_cur != "real")
+            )
+            if relax:
+                _assert_numeric_type(fv, cur[fk], where=f"Row {i}: '{fk}'")
             else:
                 assert cur[fk] == fv, (
                     f"Row {i}: field '{fk}' value changed: {fv!r} → {cur[fk]!r}"
                 )
 
-    # Coherence guard for phase-derived fields: when all three are present,
-    # the formula `clicks_fase = clicks_pe × phase_mult_used` must still hold.
-    # This protects the derivation logic without coupling to a specific phase.
+    # Coherence guards for derived fields: when the inputs are present, the
+    # documented derivation formulas must still hold. These protect the
+    # derivation logic without coupling to a specific phase or cpc reference.
     for i, cur in enumerate(current["rows"]):
         cp = cur.get("clicks_pe")
         pm = cur.get("phase_mult_used")
@@ -159,6 +176,18 @@ def test_keywords_unified_api_contract_preserved():
         if cp is not None and pm is not None and cf is not None:
             assert abs(cf - cp * pm) < 0.01, (
                 f"Row {i}: clicks_fase {cf} != clicks_pe {cp} × phase_mult_used {pm}"
+            )
+        # consumo_pe ≈ clicks / clicks_pe; consumo_fase ≈ clicks / clicks_fase.
+        clicks = cur.get("clicks") or 0
+        cpe = cur.get("consumo_pe")
+        cfa = cur.get("consumo_fase")
+        if cp is not None and cp > 0 and cpe is not None and clicks > 0:
+            assert abs(cpe - clicks / cp) < 0.01, (
+                f"Row {i}: consumo_pe {cpe} != clicks {clicks} / clicks_pe {cp}"
+            )
+        if cf is not None and cf > 0 and cfa is not None and clicks > 0:
+            assert abs(cfa - clicks / cf) < 0.01, (
+                f"Row {i}: consumo_fase {cfa} != clicks {clicks} / clicks_fase {cf}"
             )
 
 
