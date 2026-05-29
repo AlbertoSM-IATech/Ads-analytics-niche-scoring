@@ -259,8 +259,33 @@
   - Strings con `;`/`\n`/`"` escapados entre comillas correctamente. ✓
 - **NO tocados**: backend, `recommendations.py`, `server.py`, `autopilot.py`, `kdp_economy.py`, `amazon_ads.py`, importador, multiplicadores, patrones, reglas `REVIEW_CAMPAIGN`/`PAUSE_TARGET`, AI-enhanced reason. Exportaciones legacy (`/export/negatives`, `/export/autopilot`) intactas, no llamadas desde la nueva pantalla.
 
+## Update 2026-05-29 (iter 19) — Fase 4C: REVIEW_CAMPAIGN + PAUSE_TARGET
+- **Backend `recommendations.py`** ampliado con dos reglas de agregación que estaban reservadas desde Fase 3A.
+  - **G2.5 PAUSE_TARGET** (per-row, severo): solo aplica a *bidded targets* (`row.targeting` set Y `customer_search_term` None). Doble jerarquía de umbrales según relevancia:
+    - `relevance="low"`: clicks≥8, consumo_pe≥2.0, spend≥regalia×1.5 → confidence=high, risk=medium.
+    - `relevance="unreviewed"`: clicks≥12, consumo_pe≥2.5, spend≥regalia×2.0 → confidence=medium, risk=high.
+    - **NUNCA** con `relevance ∈ {"high", "medium"}`. **NUNCA** con `cpc_source="reference"`. **NUNCA** con `customer_search_term` set (los search-term harvests siguen siendo NEGATIVE_EXACT_CANDIDATE).
+    - Es excepcional, preempts NEGATIVE_EXACT_CANDIDATE cuando aplica.
+  - **REVIEW_CAMPAIGN** (segundo pase agregado): `aggregate_by_campaign(rows, per_row_recs)` + `decide_campaign(agg)`. Condiciones AND: campaign≠None, n_rows≥3, n_wait_for_data/n_rows<0.70, acos_pe_kdp resuelto, total_spend≥max(5, regalia×5). Más una OR (B1 o B2):
+    - **B1**: aggregate_beneficio<0 AND aggregate_acos > PE×1.20.
+    - **B2**: n_actionable_negative ≥ max(2, ceil(n_rows×0.4)) AND n_actionable_positive==0.
+    - Confidence: `high` si B1 con spend>regalia×10; `medium` si B1; `low` si solo B2. Risk: `medium`. Score acotado a 90 (no urgente).
+- **Frontend `ActionsPage.jsx`** (ajuste mínimo, 1 archivo): cuando `r.action_type === "REVIEW_CAMPAIGN"` AND `r.term == null`, la columna "Término" muestra el nombre de la campaña con sub-label "(campaña)". Resto del flujo intacto: chips del summary, filtros, drawer, CSV — todos consumen los nuevos `action_type` automáticamente porque las labels/styles ya existían desde Fase 3B.
+- **Sin tocar**: `server.py`, `autopilot.py`, `kdp_economy.py`, `amazon_ads.py`, `suggest_negative`, importador, multiplicadores, patrones, AI-enhanced reason. `git diff --stat HEAD~3 backend/` → solo `recommendations.py` (+240/-1) y actualización de 1 test obsoleto.
+- **Validación con dataset real (16 keywords)**: 0 REVIEW_CAMPAIGN + 0 PAUSE_TARGET → reglas **apropiadamente conservadoras**. Razones:
+  - "MergeA" tiene 12/16 (75%) WAIT_FOR_DATA → guard "campaña joven" detiene la revisión.
+  - "campaña de prueba" solo 2 filas → guard min 3.
+  - Ninguna fila tiene `targeting` puro con `customer_search_term=None` → PAUSE_TARGET no aplica a search-term harvests por diseño.
+  - Recomendaciones per-row (LOWER_BID×2, HOLD×2, WAIT_FOR_DATA×12) **inalteradas** vs Fase 4B.
+- **Testing**: 23/23 tests nuevos en `test_phase4c_aggregations.py` (12 PAUSE_TARGET + 8 REVIEW_CAMPAIGN + 1 aggregator + 1 coexistencia + 1 regresión mindfulness=LOWER_BID). **239/239 backend OK** (excluye `test_iter4/5.py` que requieren env REACT_APP_BACKEND_URL — pre-existente) + 1 test legacy de Fase 3A actualizado para reconocer la activación de REVIEW_CAMPAIGN/PAUSE_TARGET.
+- **Note**: test pre-existente `test_phase2_compat::test_keywords_unified_api_contract_preserved` falla por fixture drift (la `phase` del dataset cambió de "lanzamiento" a "beneficio" en una iteración anterior); confirmado que el fallo es ortogonal a Fase 4C (re-checkout de `recommendations.py` previo a Fase 4C reproduce el mismo fallo).
+
 ## Próximas fases (planificadas, NO implementadas aún)
-- **Fase 4C (futuro)**: activar reglas `REVIEW_CAMPAIGN` (agregación campaña) y `PAUSE_TARGET` (agregación ad_group) en `recommendations.py` con tests.
+- Decidir si sustituir `suggest_negative` legacy ahora que Fase 4C está validada (requiere consenso explícito del usuario).
+- Patrones de `NEGATIVE_PHRASE_CANDIDATE` configurables por dataset.
+- AI-enhanced `reason` con Claude (Emergent LLM key) — opcional.
+- Refactor `server.py` (>1300 líneas) → split en `/app/backend/routes/`.
+- Refresh del fixture `keywords_unified_pre_phase1.json` o cambio del test para no atarse a la `phase` del dataset (limpieza menor).
 - **Fase 4C (futuro)**: activar reglas `REVIEW_CAMPAIGN` (agregaciones nivel campaña) y `PAUSE_TARGET` (agregaciones ad_group) en `recommendations.py` con tests.
 - **No urgente**: patrones de `NEGATIVE_PHRASE_CANDIDATE` configurables por dataset; AI-enhanced `reason` con Claude.
 

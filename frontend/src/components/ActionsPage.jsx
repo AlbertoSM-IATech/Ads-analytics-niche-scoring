@@ -244,9 +244,20 @@ export default function ActionsPage({ datasetId }) {
                       </span>
                     </td>
                     <td className="px-3 py-2 max-w-[200px]">
-                      <div className="truncate font-medium" title={r.term || ""}>{r.term || "—"}</div>
-                      {r.match_type && (
-                        <div className="text-[10px] text-muted-foreground">{r.match_type}</div>
+                      {r.action_type === "REVIEW_CAMPAIGN" && !r.term ? (
+                        <>
+                          <div className="truncate font-medium" title={r.campaign || ""} data-testid={`row-campaign-as-term-${i}`}>
+                            {r.campaign || "—"}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">campaña</div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="truncate font-medium" title={r.term || ""}>{r.term || "—"}</div>
+                          {r.match_type && (
+                            <div className="text-[10px] text-muted-foreground">{r.match_type}</div>
+                          )}
+                        </>
                       )}
                     </td>
                     <td className="px-3 py-2 max-w-[150px]">
