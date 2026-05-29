@@ -339,10 +339,15 @@ export default function KeywordsUnified({ datasetId }) {
             {rows.map((r, i) => {
               const b = BADGE_STYLES[r.badge] || BADGE_STYLES["sin-datos"];
               const negative = !!r.suggest_negative;
+              const engineRec = findRecForRow(recsMap, r);
+              const hasEngineRec = !!engineRec;
+              // Motor takes visual priority: don't tint the row red or show the
+              // ban icon next to the term if the engine already has an opinion.
+              const showLegacyAsPrimary = negative && !hasEngineRec;
               return (
                 <tr
                   key={i}
-                  className={`border-t border-border hover:bg-muted/30 ${r.is_manual ? "bg-coral/5" : ""} ${negative ? "bg-red-50/60 dark:bg-red-500/5" : ""}`}
+                  className={`border-t border-border hover:bg-muted/30 ${r.is_manual ? "bg-coral/5" : ""} ${showLegacyAsPrimary ? "bg-red-50/60 dark:bg-red-500/5" : ""}`}
                   data-testid={`kw-row-${i}`}
                 >
                   <td className="px-3 py-2 max-w-[240px]">
@@ -362,9 +367,9 @@ export default function KeywordsUnified({ datasetId }) {
                           />
                         );
                       })()}
-                      {negative && <Ban className="size-3 text-red-600 shrink-0" data-testid={`neg-icon-${i}`} />}
+                      {showLegacyAsPrimary && <Ban className="size-3 text-red-600 shrink-0" data-testid={`neg-icon-${i}`} />}
                       <span className="truncate">{r.term}</span>
-                      <RecommendationBadge rec={findRecForRow(recsMap, r)} testidSuffix={i} />
+                      <RecommendationBadge rec={engineRec} testidSuffix={i} />
                     </button>
                   </td>
                   <td className="px-3 py-2">
@@ -441,13 +446,25 @@ export default function KeywordsUnified({ datasetId }) {
                   </td>
                   <td className="px-3 py-2">
                     {negative ? (
-                      <span
-                        className="badge-pill bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/30 inline-flex items-center gap-1"
-                        title="Sugerida como keyword negativa: ≥6 clicks y 0 ventas"
-                        data-testid={`neg-badge-${i}`}
-                      >
-                        <Ban className="size-3" /> Sugerida
-                      </span>
+                      hasEngineRec ? (
+                        <span
+                          className="text-[10px] text-muted-foreground italic"
+                          title="Regla legacy también la marcaría como negativa (≥6 clicks, 0 ventas). El motor de recomendaciones tiene prioridad cuando está disponible."
+                          data-testid={`neg-badge-${i}`}
+                          data-legacy-mode="secondary"
+                        >
+                          legacy: sugerida
+                        </span>
+                      ) : (
+                        <span
+                          className="badge-pill bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/30 inline-flex items-center gap-1"
+                          title="Regla legacy: basada solo en clicks y pedidos (≥6 clicks, 0 ventas). El motor de recomendaciones tiene prioridad cuando está disponible. Revisión recomendada con el motor nuevo cuando haya datos económicos."
+                          data-testid={`neg-badge-${i}`}
+                          data-legacy-mode="primary"
+                        >
+                          <Ban className="size-3" /> Sugerida
+                        </span>
+                      )
                     ) : (
                       <span className="text-muted-foreground/40 text-xs">—</span>
                     )}
