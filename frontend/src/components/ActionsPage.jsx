@@ -116,8 +116,14 @@ export default function ActionsPage({ datasetId }) {
 
   if (!datasetId) {
     return (
-      <div className="border border-dashed border-border p-12 text-center rounded-lg bg-card" data-testid="actions-empty-no-dataset">
-        <div className="text-sm text-muted-foreground">Importa un CSV de Amazon Ads para ver las recomendaciones.</div>
+      <div className="border border-dashed border-border p-12 text-center rounded-lg bg-card space-y-3" data-testid="actions-empty-no-dataset">
+        <div className="text-sm text-muted-foreground max-w-md mx-auto">
+          No hay recomendaciones todavía. Importa datos de Amazon Ads y configura la economía del libro para activar el motor.
+        </div>
+        <div className="flex items-center justify-center gap-2 flex-wrap text-xs">
+          <a href="/import" className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 hover:border-coral hover:text-coral" data-testid="actions-empty-cta-import">Importar CSV</a>
+          <a href="/book" className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 hover:border-coral hover:text-coral" data-testid="actions-empty-cta-book">Configurar libro</a>
+        </div>
       </div>
     );
   }
@@ -186,9 +192,15 @@ export default function ActionsPage({ datasetId }) {
       )}
 
       {!loading && !error && all.length === 0 && (
-        <div className="border border-dashed border-border p-12 text-center rounded-lg bg-card flex flex-col items-center gap-2" data-testid="actions-empty">
+        <div className="border border-dashed border-border p-12 text-center rounded-lg bg-card flex flex-col items-center gap-3" data-testid="actions-empty">
           <Inbox className="size-6 text-muted-foreground" />
-          <div className="text-sm text-muted-foreground">No hay recomendaciones accionables todavía.</div>
+          <div className="text-sm text-muted-foreground max-w-md">
+            No hay recomendaciones todavía. Importa datos de Amazon Ads y configura la economía del libro para activar el motor.
+          </div>
+          <div className="flex items-center justify-center gap-2 flex-wrap text-xs">
+            <a href="/import" className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 hover:border-coral hover:text-coral" data-testid="actions-empty-cta-import-2">Importar CSV</a>
+            <a href="/book" className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 hover:border-coral hover:text-coral" data-testid="actions-empty-cta-book-2">Configurar libro</a>
+          </div>
         </div>
       )}
 

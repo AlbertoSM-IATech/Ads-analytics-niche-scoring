@@ -9,16 +9,32 @@ import KeywordsUnified from "../components/KeywordsUnified";
 import DashboardBlocks from "../components/DashboardBlocks";
 import DistributionChart from "../components/DistributionChart";
 import ActionsPage from "../components/ActionsPage";
+import GettingStartedCard from "../components/GettingStartedCard";
 import { useData } from "../context/DataContext";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, NavLink } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getKeywordsUnified } from "../lib/api";
+import { Upload, BookOpen } from "lucide-react";
 
-function Empty({ msg }) {
+function Empty({ msg, actions }) {
   return (
-    <div className="border border-dashed border-border p-12 text-center rounded-lg bg-card animate-fade-in" data-testid="empty-state">
-      <div className="text-sm text-muted-foreground">{msg}</div>
+    <div className="border border-dashed border-border p-12 text-center rounded-lg bg-card animate-fade-in space-y-3" data-testid="empty-state">
+      <div className="text-sm text-muted-foreground max-w-md mx-auto">{msg}</div>
+      {actions && <div className="flex items-center justify-center gap-2 flex-wrap">{actions}</div>}
     </div>
+  );
+}
+
+function EmptyActionLink({ to, icon: Icon, children, testid }) {
+  return (
+    <NavLink
+      to={to}
+      className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:border-coral hover:text-coral transition-colors"
+      data-testid={testid}
+    >
+      {Icon && <Icon className="size-3.5" />}
+      {children}
+    </NavLink>
   );
 }
 
@@ -36,6 +52,7 @@ function DashboardView() {
     : null;
   return (
     <div className="space-y-6 animate-fade-in" data-testid="view-dashboard">
+      {!active && <GettingStartedCard />}
       <KpiGrid kpis={active?.kpis} acosEquilibrio={pe} />
       {active && (
         <>
@@ -49,7 +66,15 @@ function DashboardView() {
           <AiPanel datasetId={active.id} initialRecs={active.ai_recommendations} />
         </>
       ) : (
-        <Empty msg="Importa un CSV de Amazon Ads para empezar." />
+        <Empty
+          msg="Aún no hay datasets importados. Sube un reporte de Amazon Ads para empezar el análisis."
+          actions={
+            <>
+              <EmptyActionLink to="/import" icon={Upload} testid="empty-cta-import">Importar CSV</EmptyActionLink>
+              <EmptyActionLink to="/book" icon={BookOpen} testid="empty-cta-book">Configurar libro</EmptyActionLink>
+            </>
+          }
+        />
       )}
     </div>
   );
@@ -78,11 +103,21 @@ export default function Dashboard() {
           <Route path="/book" element={<BookInfoPanel />} />
           <Route
             path="/keywords"
-            element={active ? <KeywordsUnified datasetId={active.id} /> : <Empty msg="Importa un CSV para ver tus keywords." />}
+            element={active ? <KeywordsUnified datasetId={active.id} /> : (
+              <Empty
+                msg="Aún no hay términos importados. Sube un reporte de Amazon Ads para empezar el análisis."
+                actions={<EmptyActionLink to="/import" icon={Upload} testid="empty-keywords-import">Importar CSV</EmptyActionLink>}
+              />
+            )}
           />
           <Route
             path="/campaigns"
-            element={active ? <CampaignsTable datasetId={active.id} /> : <Empty msg="Importa un CSV para ver campañas." />}
+            element={active ? <CampaignsTable datasetId={active.id} /> : (
+              <Empty
+                msg="Sin datos de campañas todavía. Importa un reporte de Amazon Ads para ver el resumen agregado."
+                actions={<EmptyActionLink to="/import" icon={Upload} testid="empty-camp-import">Importar CSV</EmptyActionLink>}
+              />
+            )}
           />
           <Route
             path="/acciones"
