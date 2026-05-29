@@ -1,4 +1,5 @@
 import { ACTION_LABELS, ACTION_STYLES } from "../lib/recommendations";
+import { InfoTooltip } from "./InfoTooltip";
 
 // All action types we render in the breakdown, in the order we want them shown.
 const ACTION_ORDER = [
@@ -14,10 +15,13 @@ const ACTION_ORDER = [
   "PAUSE_TARGET",
 ];
 
-function Kpi({ label, value, accent, testid }) {
+function Kpi({ label, value, accent, testid, tip }) {
   return (
     <div className="border border-border rounded-lg bg-card p-3 min-w-[110px]" data-testid={testid}>
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">{label}</div>
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-1">
+        <span>{label}</span>
+        {tip && <InfoTooltip content={tip} />}
+      </div>
       <div className={`num text-2xl font-semibold mt-1 ${accent || ""}`}>{value}</div>
     </div>
   );
@@ -35,15 +39,16 @@ export default function ActionsSummary({ recommendations, byAction, onPickAction
   return (
     <div className="space-y-3" data-testid="actions-summary">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Kpi label="Total" value={total} testid="kpi-total" />
-        <Kpi label="Alta" value={byPriority.high} accent="text-red-600 dark:text-red-400" testid="kpi-high" />
-        <Kpi label="Media" value={byPriority.medium} accent="text-amber-600 dark:text-amber-400" testid="kpi-medium" />
-        <Kpi label="Baja" value={byPriority.low} accent="text-muted-foreground" testid="kpi-low" />
+        <Kpi label="Total" value={total} testid="kpi-total" tip="acciones_total" />
+        <Kpi label="Alta" value={byPriority.high} accent="text-red-600 dark:text-red-400" testid="kpi-high" tip="acciones_high" />
+        <Kpi label="Media" value={byPriority.medium} accent="text-amber-600 dark:text-amber-400" testid="kpi-medium" tip="acciones_medium" />
+        <Kpi label="Baja" value={byPriority.low} accent="text-muted-foreground" testid="kpi-low" tip="acciones_low" />
       </div>
 
       <div className="border border-border rounded-lg bg-card p-3">
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-2">
-          Desglose por acción
+        <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-2 flex items-center gap-1">
+          <span>Desglose por acción</span>
+          <InfoTooltip content="action_type" />
         </div>
         <div className="flex flex-wrap gap-1.5">
           {ACTION_ORDER.map((a) => {

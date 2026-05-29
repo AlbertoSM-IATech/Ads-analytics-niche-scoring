@@ -199,7 +199,10 @@ export default function BookEconomyKDP() {
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
         <div>
-          <Label className="text-xs">Marketplace KDP</Label>
+          <Label className="text-xs flex items-center gap-1">
+            Marketplace KDP
+            <InfoTooltip content="marketplace" />
+          </Label>
           <Select value={kdpMarketplace} onValueChange={setKdpMarketplace}>
             <SelectTrigger className="rounded-md mt-1" data-testid="kdp-marketplace"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -213,7 +216,10 @@ export default function BookEconomyKDP() {
           </div>
         </div>
         <div>
-          <Label className="text-xs">Formato</Label>
+          <Label className="text-xs flex items-center gap-1">
+            Formato
+            <InfoTooltip content="formato" />
+          </Label>
           <Select value={form.format_type} onValueChange={(v) => setForm({ ...form, format_type: v })}>
             <SelectTrigger className="rounded-md mt-1" data-testid="kdp-format-type"><SelectValue placeholder="Selecciona formato…" /></SelectTrigger>
             <SelectContent>
@@ -239,7 +245,10 @@ export default function BookEconomyKDP() {
         {isPrint && (
           <>
             <div>
-              <Label className="text-xs">Tipo de interior</Label>
+              <Label className="text-xs flex items-center gap-1">
+                Tipo de interior
+                <InfoTooltip content="tipo_impresion" />
+              </Label>
               <Select value={form.interior_type} onValueChange={(v) => setForm({ ...form, interior_type: v })}>
                 <SelectTrigger className="rounded-md mt-1" data-testid="kdp-interior-type"><SelectValue placeholder="BN / Color" /></SelectTrigger>
                 <SelectContent>
@@ -264,7 +273,10 @@ export default function BookEconomyKDP() {
               </Select>
             </div>
             <div>
-              <Label className="text-xs">Páginas</Label>
+              <Label className="text-xs flex items-center gap-1">
+                Páginas
+                <InfoTooltip content="pages" />
+              </Label>
               <Input
                 type="number" min={24} max={828} step={1}
                 value={form.pages}
@@ -364,16 +376,16 @@ export default function BookEconomyKDP() {
           )}
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricBox label="Regalía neta" value={fmtNum(o.regalia_neta, 2, sym)} accent="text-coral" testid="out-regalia" />
-            <MetricBox label="ACoS de equilibrio" value={o.acos_pe == null ? "—" : `${fmtNum(o.acos_pe, 2)}%`} accent="text-coral" tooltip="ACoS PE = regalía / PVP × 100. También conocido como break-even ACoS o BACOS." testid="out-acos-pe" />
+            <MetricBox label="Regalía neta" value={fmtNum(o.regalia_neta, 2, sym)} accent="text-coral" tooltip="regalia_neta" testid="out-regalia" />
+            <MetricBox label="ACoS de equilibrio" value={o.acos_pe == null ? "—" : `${fmtNum(o.acos_pe, 2)}%`} accent="text-coral" tooltip="acos_eq" testid="out-acos-pe" />
             <MetricBox label="CPC máx rentable" value={fmtNum(o.cpc_max_rentable, 2, sym)} tooltip="CPC máximo orientativo = regalía / 10. Umbral del mínimo de 10 clicks por venta." testid="out-cpc-max" />
-            <MetricBox label="Clicks PE base" value={fmtNum(o.clicks_pe_base, 2)} tooltip="Clicks PE base = regalía / CPC de referencia. Requiere CPC de referencia configurado." testid="out-clicks-pe" />
+            <MetricBox label="Clicks PE base" value={fmtNum(o.clicks_pe_base, 2)} tooltip="clicks_pe" testid="out-clicks-pe" />
             {!legacyMode && (
               <>
                 <MetricBox label="Precio sin IVA" value={fmtNum(o.precio_sin_iva, 2, sym)} testid="out-precio-sin-iva" />
                 <MetricBox label="Coste impresión" value={fmtNum(o.coste_impresion, 2, sym)} testid="out-coste-impresion" />
                 <MetricBox label="% Regalía aplicada" value={o.royalty_rate_used_pct == null ? "—" : `${o.royalty_rate_used_pct}%`} testid="out-royalty-rate" />
-                <MetricBox label="PVP mínimo" value={fmtNum(o.pvp_minimo_recomendado, 2, sym)} tooltip="PVP mínimo que alcanza el margen objetivo." testid="out-pvp-minimo" />
+                <MetricBox label="PVP mínimo" value={fmtNum(o.pvp_minimo_recomendado, 2, sym)} tooltip="pvp_minimo" testid="out-pvp-minimo" />
               </>
             )}
           </div>
@@ -384,6 +396,7 @@ export default function BookEconomyKDP() {
                 <div className="flex items-center justify-between">
                   <div className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-1.5">
                     <Target className="size-3.5" /> Score económico
+                    <InfoTooltip content="score_economico" />
                   </div>
                   <Badge className="text-lg px-3 py-0.5 bg-coral hover:bg-coral text-white num" data-testid="kdp-score-total">{d.score_total}</Badge>
                 </div>

@@ -8,6 +8,7 @@ import { fmtMoney, fmtInt, getMarketplace } from "../lib/format";
 import { ACTION_LABELS, ACTION_STYLES, priorityLabel, confidenceLabel, riskLabel } from "../lib/recommendations";
 import { downloadCsv } from "../lib/exportRecommendationsCsv";
 import { Button } from "./ui/button";
+import { InfoTooltip } from "./InfoTooltip";
 import ActionsSummary from "./ActionsSummary";
 import ActionsFilters from "./ActionsFilters";
 import ActionDetailDrawer from "./ActionDetailDrawer";
@@ -164,6 +165,7 @@ export default function ActionsPage({ datasetId }) {
         >
           <Download className="size-3.5" />
           Exportar vista actual
+          <InfoTooltip content="export_actions" className="ml-1" />
         </Button>
       </div>
 

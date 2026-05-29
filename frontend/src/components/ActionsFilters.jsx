@@ -6,6 +6,7 @@ import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { X } from "lucide-react";
 import { ACTION_LABELS } from "../lib/recommendations";
+import { InfoTooltip } from "./InfoTooltip";
 
 const ACTION_OPTIONS = [
   "WAIT_FOR_DATA", "OBSERVE", "LOWER_BID", "HOLD", "SCALE",
@@ -92,7 +93,10 @@ export default function ActionsFilters({ value, onChange }) {
       />
 
       <div className="flex flex-col gap-1">
-        <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">Solo con ventas</Label>
+        <Label className="text-[10px] uppercase tracking-widest text-muted-foreground inline-flex items-center gap-1">
+          <span>Solo con ventas</span>
+          <InfoTooltip content="only_with_orders" />
+        </Label>
         <div className="flex items-center h-8">
           <Switch
             checked={!!value.onlyWithOrders}
@@ -103,7 +107,10 @@ export default function ActionsFilters({ value, onChange }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">Solo en pérdida</Label>
+        <Label className="text-[10px] uppercase tracking-widest text-muted-foreground inline-flex items-center gap-1">
+          <span>Solo en pérdida</span>
+          <InfoTooltip content="only_negative_profit" />
+        </Label>
         <div className="flex items-center h-8">
           <Switch
             checked={!!value.onlyNegativeProfit}

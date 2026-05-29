@@ -559,7 +559,7 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
                       <div className="flex items-center gap-2">
                         <Sparkles className="size-4 text-coral" />
                         <h3 className="text-sm font-semibold">Recomendación del motor</h3>
-                        <InfoTooltip content="Recomendación calculada por el motor determinista (Fase 3A/3A.1) basada en consumo PE, recuperabilidad, relevancia y beneficio KDP. Read-only: no aplica cambios automáticamente." />
+                        <InfoTooltip content="recomendacion_motor" />
                       </div>
                       <span
                         className={`inline-flex items-center rounded-md border text-[11px] py-0.5 px-2 ${style.cls}`}
@@ -573,13 +573,22 @@ export default function KeywordDetailSheet({ open, onClose, term, initialTab = "
                       <span
                         className="px-2 py-0.5 rounded border bg-muted text-muted-foreground border-border"
                         data-testid="engine-rec-priority"
+                        title="Prioridad: urgencia + gasto + desviación frente al equilibrio. Alta = atender cuanto antes."
                       >
                         Prioridad: <span className="font-semibold">{priorityLabel(engineRec.priority)}</span>
                       </span>
-                      <span className="px-2 py-0.5 rounded border bg-muted text-muted-foreground border-border" data-testid="engine-rec-confidence">
+                      <span
+                        className="px-2 py-0.5 rounded border bg-muted text-muted-foreground border-border"
+                        data-testid="engine-rec-confidence"
+                        title="Confianza: cuán seguro está el motor. Baja suele ir con CPC estimado o pocos datos."
+                      >
                         Confianza: <span className="font-semibold">{confidenceLabel(engineRec.confidence)}</span>
                       </span>
-                      <span className="px-2 py-0.5 rounded border bg-muted text-muted-foreground border-border" data-testid="engine-rec-risk">
+                      <span
+                        className="px-2 py-0.5 rounded border bg-muted text-muted-foreground border-border"
+                        data-testid="engine-rec-risk"
+                        title="Riesgo: probabilidad de aplicar la acción y arrepentirse. Alto = revisar antes de actuar."
+                      >
                         Riesgo: <span className="font-semibold">{riskLabel(engineRec.risk)}</span>
                       </span>
                       <span className="px-2 py-0.5 rounded border bg-muted text-muted-foreground border-border num" data-testid="engine-rec-score">

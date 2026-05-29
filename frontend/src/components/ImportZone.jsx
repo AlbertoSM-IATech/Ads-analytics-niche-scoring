@@ -96,7 +96,10 @@ export default function ImportZone() {
                 <div className="size-14 rounded-full bg-coral/10 flex items-center justify-center">
                   <Upload className="size-6 text-coral" />
                 </div>
-                <div className="font-heading text-lg font-semibold">Arrastra tu CSV/XLSX de Amazon Ads</div>
+                <div className="font-heading text-lg font-semibold inline-flex items-center gap-2">
+                  Arrastra tu CSV/XLSX de Amazon Ads
+                  <InfoTooltip content="import_file_type" />
+                </div>
                 <div className="text-sm text-muted-foreground max-w-md mx-auto">
                   Sponsored Products · Brands · Display — Search Term, Campaign, Placement (ES/EN/IT)
                 </div>
@@ -119,7 +122,10 @@ export default function ImportZone() {
               />
             </div>
             <div className="text-xs text-muted-foreground space-y-1.5">
-              <div className="uppercase tracking-widest font-semibold text-foreground">Compatibilidad</div>
+              <div className="uppercase tracking-widest font-semibold text-foreground inline-flex items-center gap-1">
+                Compatibilidad
+                <InfoTooltip content="import_window" />
+              </div>
               <ul className="space-y-1 list-disc pl-4">
                 <li>Auto-detección columnas ES/EN/IT</li>
                 <li>Formatos: CSV, TSV, XLSX</li>
