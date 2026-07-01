@@ -4,10 +4,11 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { uploadCsv, importNiche } from "../lib/api";
+import { uploadCsv, previewCsv, importNiche } from "../lib/api";
 import { useData } from "../context/DataContext";
 import { toast } from "sonner";
 import { InfoTooltip } from "./InfoTooltip";
+import { ImportPreview } from "./ImportPreview";
 
 export default function ImportZone() {
   const { marketplace, refresh, loadActive, active } = useData();
@@ -15,6 +16,9 @@ export default function ImportZone() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [name, setName] = useState("");
+  // IMPORT-2: preview state — file kept in memory until user confirms.
+  const [preview, setPreview] = useState(null);
+  const [pendingFile, setPendingFile] = useState(null);
   const inputRef = useRef(null);
   const nicheInputRef = useRef(null);
   const [nicheBusy, setNicheBusy] = useState(false);
@@ -22,19 +26,42 @@ export default function ImportZone() {
 
   const handleAds = useCallback(async (file) => {
     if (!file) return;
-    setBusy(true); setResult(null);
+    setBusy(true); setResult(null); setPreview(null);
     try {
-      const r = await uploadCsv(file, marketplace, name || file.name);
-      setResult({ ok: true, data: r.data });
-      toast.success(`Importado: ${r.data.row_count} filas`);
-      await refresh();
-      await loadActive(r.data.id);
+      const r = await previewCsv(file, 10);
+      setPreview(r.data);
+      setPendingFile(file);
     } catch (e) {
       const msg = e?.response?.data?.detail || e.message;
       setResult({ ok: false, error: msg });
       toast.error(`Error: ${msg}`);
     } finally { setBusy(false); }
-  }, [marketplace, name, refresh, loadActive]);
+  }, []);
+
+  const confirmImport = useCallback(async () => {
+    if (!pendingFile) return;
+    setBusy(true);
+    try {
+      const r = await uploadCsv(pendingFile, marketplace, name || pendingFile.name);
+      setResult({ ok: true, data: r.data });
+      toast.success(`Importado: ${r.data.row_count} filas`);
+      await refresh();
+      await loadActive(r.data.id);
+      setPreview(null);
+      setPendingFile(null);
+    } catch (e) {
+      const msg = e?.response?.data?.detail || e.message;
+      setResult({ ok: false, error: msg });
+      toast.error(`Error: ${msg}`);
+    } finally { setBusy(false); }
+  }, [pendingFile, marketplace, name, refresh, loadActive]);
+
+  const cancelPreview = useCallback(() => {
+    setPreview(null);
+    setPendingFile(null);
+    setResult(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }, []);
 
   const handleNiche = async (file) => {
     if (!file || !active) return;
@@ -86,7 +113,7 @@ export default function ImportZone() {
               onChange={(e) => handleAds(e.target.files?.[0])}
               data-testid="file-input"
             />
-            {busy ? (
+            {busy && !preview ? (
               <div className="flex flex-col items-center gap-3 text-coral">
                 <Loader2 className="size-12 animate-spin" />
                 <div className="text-sm">Analizando informe…</div>
@@ -136,6 +163,14 @@ export default function ImportZone() {
             </div>
           </div>
         </div>
+        {preview && (
+          <ImportPreview
+            preview={preview}
+            onConfirm={confirmImport}
+            onCancel={cancelPreview}
+            busy={busy}
+          />
+        )}
         {result?.ok && (
           <div className="border border-green-300 dark:border-green-500/40 bg-green-50 dark:bg-green-500/5 p-4 rounded-lg flex items-start gap-3">
             <FileCheck2 className="size-5 text-green-600 dark:text-green-400 mt-0.5" />

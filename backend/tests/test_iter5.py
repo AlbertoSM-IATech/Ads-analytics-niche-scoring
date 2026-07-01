@@ -224,6 +224,26 @@ class TestPlanSummary:
 # -------- Export Negatives CSV --------
 class TestExportNegatives:
     def test_csv_header_and_rows(self, session, ds_id):
+        """Phase 4D contract:
+        When the dataset has an economy resolved (this fixture sets
+        precio_libro=14.99 + regalias_por_venta=4.50 → regalia_source="direct"),
+        /export/negatives is driven by the deterministic engine, NOT by the
+        legacy heuristic `clicks >= min_clicks AND orders == 0`. Only terms
+        flagged NEGATIVE_EXACT_CANDIDATE / NEGATIVE_PHRASE_CANDIDATE are exported.
+
+        Under the current rules:
+          - buddha quotes  (20c, spend $10, consumo_pe≈2.22 > 1.0) → G4 fires →
+            NEGATIVE_EXACT_CANDIDATE → EXPORTED.
+          - no sales term  (10c, spend $3,  consumo_pe≈0.667)     → G8 fires →
+            OBSERVE → NOT exported (consumo has not exceeded PE; engine is
+            deliberately more conservative than the legacy heuristic).
+          - mindfulness book (3 orders) → HOLD → not exported.
+          - yoga mat (2 orders) → HOLD → not exported.
+
+        This test used to assert the pre-Phase-4D legacy behavior. Alignment
+        with the engine contract is separately guarded by
+        test_phase4d1_export_negatives_alignment.py.
+        """
         r = session.get(f"{API}/datasets/{ds_id}/export/negatives",
                         params={"min_clicks": 6}, timeout=30)
         assert r.status_code == 200
@@ -232,14 +252,16 @@ class TestExportNegatives:
         reader = list(csv.reader(io.StringIO(r.text)))
         assert reader[0] == ["Product", "Entity", "Operation", "Campaign Id", "Ad Group Id",
                              "Campaign Name", "Ad Group Name", "Match Type", "Keyword Text"]
-        # Candidates: clicks >= 6 AND orders == 0
-        # buddha quotes: 20c, 0o → YES
-        # no sales term: 10c, 0o → YES
-        # mindfulness book: 3 orders → NO
-        # yoga mat: 2 orders → NO
         term_col = [row[8] for row in reader[1:]]
-        assert "buddha quotes" in term_col
-        assert "no sales term" in term_col
+        assert "buddha quotes" in term_col, (
+            "buddha quotes must appear: engine emits NEGATIVE_EXACT_CANDIDATE"
+        )
+        # Legacy expectation was `no sales term` present; new engine contract
+        # excludes it because its consumo_pe (~0.667) doesn't exceed PE.
+        assert "no sales term" not in term_col, (
+            "no sales term must NOT appear under engine mode "
+            "(consumo_pe < 1.0 → OBSERVE, not NEGATIVE)"
+        )
         assert "mindfulness book" not in term_col
         assert "yoga mat" not in term_col
         # All data rows must have negativeExact match type and Sponsored Products entity
@@ -250,7 +272,11 @@ class TestExportNegatives:
             assert row[7] == "negativeExact"
 
     def test_min_clicks_filter(self, session, ds_id):
-        # raising min_clicks to 15 leaves only 'buddha quotes' (20c)
+        """min_clicks is only honored under the legacy fallback path (no
+        economy). Under engine mode (this fixture) min_clicks is ignored and
+        the set is fully engine-driven. We still validate the returned set is
+        stable and coherent.
+        """
         r = session.get(f"{API}/datasets/{ds_id}/export/negatives",
                         params={"min_clicks": 15}, timeout=30)
         assert r.status_code == 200

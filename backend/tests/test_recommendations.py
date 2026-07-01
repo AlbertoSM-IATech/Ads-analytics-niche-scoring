@@ -393,8 +393,13 @@ def test_importer_still_byte_equivalent_in_phase3a():
             httpx.delete(f"{API}/datasets/{new_id}", timeout=10)
         except Exception:
             pass
-    for k in ("id", "created_at"):
+    for k in ("id", "created_at", "diagnostics"):
         payload.pop(k, None)
+    # IMPORT-2 note: `diagnostics` is a new key added by the importer to
+    # surface report_type/confidence/warnings/capabilities. It's excluded
+    # from the byte-equivalent snapshot check (like `id` and `created_at`)
+    # because it's additive, well-defined, and covered by dedicated tests
+    # in test_import_stabilization.py.
     assert json.dumps(payload, sort_keys=True, default=str) == \
            json.dumps(snap, sort_keys=True, default=str)
 

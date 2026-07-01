@@ -14,6 +14,17 @@ export const uploadCsv = (file, marketplace, name) => {
   });
 };
 
+// IMPORT-2: dry-run preview. Returns diagnostics/capabilities/warnings.
+// Does NOT create a dataset on the server.
+export const previewCsv = (file, previewRows = 10) => {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("preview_rows", String(previewRows));
+  return api.post("/imports/preview", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+
 export const listDatasets = (marketplace) =>
   api.get("/datasets", { params: marketplace ? { marketplace } : {} });
 export const getDataset = (id) => api.get(`/datasets/${id}`);

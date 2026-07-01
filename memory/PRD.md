@@ -289,3 +289,75 @@
 - **Fase 4C (futuro)**: activar reglas `REVIEW_CAMPAIGN` (agregaciones nivel campaña) y `PAUSE_TARGET` (agregaciones ad_group) en `recommendations.py` con tests.
 - **No urgente**: patrones de `NEGATIVE_PHRASE_CANDIDATE` configurables por dataset; AI-enhanced `reason` con Claude.
 
+
+
+## IMPORT-1 diagnóstico + IMPORT-2 estabilización (2026-07-01)
+
+### IMPORT-1 (diagnóstico, sin código)
+Auditoría del contrato de importación Amazon Ads. Documentó:
+- 4 tipos de reporte cubiertos parcialmente (Search Term / Campaign / Placement / unknown).
+- 3 riesgos P0 latentes: match-type ES/IT no promocionaba a MOVE_TO_EXACT, ACoS fraccional interpretado como %, headers ligeramente distintos importaban con 0 métricas silenciosamente.
+- Suite tenía 1 test roto (`test_iter5.py::TestExportNegatives::test_csv_header_and_rows`, drift real de contrato Phase 4D, no bug).
+
+### IMPORT-2 (estabilización P0 implementada — cerrada)
+Objetivo: reducir errores silenciosos en importación sin rediseñar la app.
+
+**Cambios de backend**
+- **Test roto arreglado**: `test_iter5.py::TestExportNegatives::test_csv_header_and_rows` alineado al contrato Phase 4D (documenta el drift; `no sales term` correctamente NO se exporta bajo motor porque `consumo_pe=0.667 < 1.0`).
+- **Endpoint nuevo `POST /api/imports/preview`** (dry-run puro): devuelve diagnostics + primeras N filas normalizadas. **NO persiste nada** en Mongo (verificado con `list_datasets` antes/después).
+- **Estructura `diagnostics`** añadida a upload + preview:
+  - `report_type` · `report_type_confidence` (high/medium/low) · `matched_fields` · `header_mapping` · `unmatched_headers` · `missing_critical` · `warnings` · `capabilities` (`ads_performance`, `profitability`, `negatives`, `bid_changes`, `tacos`, `bulk`).
+- **Normalización de `match_type`** (i18n canónica → `{exact, phrase, broad, auto}`): soporta EN (`Exact`/`Phrase`/`Broad`/`Auto`/`Automatic`), ES (`Exacta`/`Frase`/`Amplia`/`Automática`), IT (`Esatta`/`Frase`/`Ampia`/`Generica`/`Automatica`), más prefijos `Sponsored Products ...`. `recommendations.py::normalize_match_type` delega en el helper unificado (defensa en profundidad para datasets viejos).
+- **Detección de ACoS/CTR/CVR fraccional**: si un campo % no tenía símbolo `%` en texto original y `0 < max ≤ 1.0`, se multiplica ×100 y se emite warning explícito con el rango detectado.
+- **Matcher de headers por score** (sustituye `any(a in nh or nh in a)`): tiers 100/80/60/40 (exact > equality-modulo-punctuation > whole-word > prefix). Colisiones (dos headers al mismo canónico) emiten warning en vez de descarte silencioso. Ambigüedad (un header con dos candidatos cercanos en score) también emite warning.
+- **Currency parenthesised stripping**: `Coste total (EUR)` → `spend`, `Coste por clic (EUR)` → `cpc` sin colisión por subcadena `coste`.
+
+**Cambios de frontend (mínimos)**
+- `previewCsv(file, previewRows)` en `/lib/api.js`.
+- Nuevo componente `ImportPreview.jsx` (200 líneas) — bloque de diagnóstico + confirm/cancel. Bloquea confirmación si `report_type == "unknown"` o hay `missing_critical`.
+- `ImportZone.jsx` reescrito el flujo: usuario suelta el archivo → llama preview → muestra `ImportPreview` → usuario confirma → llama upload. Layout y estilos existentes intactos.
+
+**Fixtures y tests nuevos**
+- Directorio `tests/fixtures/import_csvs/` con **7 CSVs sintéticos** (README explícito: "Todos son SINTÉTICOS, no reales"):
+  - `search_term_es.csv` (ES, `;`, decimales `,`)
+  - `campaign_en.csv`
+  - `acos_percent.csv` (`39.66%`)
+  - `acos_fractional.csv` (`0.3966`)
+  - `match_types_es.csv` (`Exacta`/`Frase`/`Amplia`/`Automática`)
+  - `parenthesised_currency.csv` (`Coste total (EUR)`, `Puja (EUR)`, `Ventas (EUR)`)
+  - `unknown_headers.csv`
+- `tests/test_import_stabilization.py`: 40 tests que cubren normalización match_type, matcher seguro, detección fraccional, currency paren, ES/EN detectados con confidence, unknown flagged, preview idempotente (no persiste), missing_critical, upload retorna diagnostics.
+
+**Fixture-drift documentados** (contract change intencional; no oculté nada):
+- `test_phase2_compat.py`, `test_phase2b_relevance.py`, `test_recommendations.py::test_importer_still_byte_equivalent_in_phase3a`: extendida la lista de exclusión de keys volátiles con `diagnostics` (comentario explícito citando IMPORT-2).
+
+**Resultado suite**: 315 passed · 7 skipped · **0 failed** (baseline previa: 275 passed / 1 failed).
+
+### No tocado (respetando scope)
+`autopilot.py`, `kdp_economy.py`, `recommendations.py` (solo delegación de `normalize_match_type`), estructura de datasets guardados, UI de `/keywords`, `/acciones`, `BookEconomyKDP`, layout, tema, dataset demo.
+
+### Archivos tocados
+- `backend/amazon_ads.py` — reescrito (score-based matcher + i18n + diagnostics + ACoS fractional).
+- `backend/server.py` — endpoint `POST /api/imports/preview`; `POST /api/imports/upload` ahora persiste y devuelve `diagnostics`.
+- `backend/recommendations.py` — `normalize_match_type` delega en `amazon_ads`.
+- `backend/tests/test_iter5.py` — test drift arreglado + comentario contrato Phase 4D.
+- `backend/tests/test_phase2_compat.py`, `test_phase2b_relevance.py`, `test_recommendations.py` — exclusión aditiva de `diagnostics`.
+- `backend/tests/test_import_stabilization.py` — NUEVO (40 tests).
+- `backend/tests/fixtures/import_csvs/*` — NUEVOS (7 CSVs + README).
+- `frontend/src/lib/api.js` — `previewCsv`.
+- `frontend/src/components/ImportPreview.jsx` — NUEVO.
+- `frontend/src/components/ImportZone.jsx` — flujo preview→confirm.
+
+### Backlog (no ejecutado en IMPORT-2, pero identificado en IMPORT-1)
+- **P1** — Añadir campos canónicos opcionales (`current_bid`, `state`, `budget`, `campaign_type`, `targeting_type`, `keyword_id`, `campaign_id`, `ad_group_id`) sin cambiar motor.
+- **P1** — Detectar Targeting Report y Advertised Product Report como tipos propios.
+- **P1** — Fechas `start_date/end_date` parseadas a ISO.
+- **P1** — Unificar `_to_number` entre `amazon_ads.py` y `autopilot.py::parse_niche_csv`.
+- **P1** — Sanity checks (`clicks > impressions`, `orders > clicks`, `acos > 1000%`).
+- **P2** — Bulk sheet (multi-entity pivot), TACOS (Advertised Product Report), Amazon Ads API, Placement report explotado, chunked upload, DE/FR/PT/JP.
+
+### Product roadmap post-IMPORT-2 (a decisión del usuario)
+1. UX-2.6 — Selección masiva / archivar / ocultar keywords (mini-plan backend implicaciones pendiente).
+2. UX-2.7 — Campañas manuales (etiquetas internas sin sobreescribir nombres Amazon).
+3. Refactor `server.py` → `/app/backend/routes/`.
+4. Limpieza de código muerto (`/search-terms` + `SearchTermsTable.jsx`).

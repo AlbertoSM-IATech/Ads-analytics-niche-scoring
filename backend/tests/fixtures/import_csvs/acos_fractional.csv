@@ -1,0 +1,4 @@
+Campaign Name,Ad Group Name,Customer Search Term,Match Type,Impressions,Clicks,Spend,7 Day Total Sales,7 Day Total Orders (#),ACOS
+CampA,AG,dash diet book,phrase,1000,20,10.00,50.00,2,0.20
+CampA,AG,mindful eating,broad,500,10,3.00,10.00,1,0.30
+CampA,AG,zen life,exact,300,5,1.50,7.50,1,0.20

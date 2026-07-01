@@ -247,6 +247,8 @@ async def upload_csv(
         "header_mapping": parsed["header_mapping"],
         "headers_detected": parsed["headers_detected"],
         "rows": parsed["rows"],
+        # IMPORT-2: diagnostics captured at import time (persisted for audit).
+        "diagnostics": parsed.get("diagnostics"),
         "book_info": {"title": "", "subtitle": "", "description": "", "categories": []},
         "book_economy": {
             "precio_libro": 0.0, "regalias_por_venta": 0.0,
@@ -259,7 +261,46 @@ async def upload_csv(
         "snapshots": {},
     }
     await db.datasets.insert_one(doc)
-    return {k: v for k, v in doc.items() if k not in ("rows", "_id")}
+    resp = {k: v for k, v in doc.items() if k not in ("rows", "_id")}
+    return resp
+
+
+@api.post("/imports/preview")
+async def preview_csv(
+    file: UploadFile = File(...),
+    preview_rows: int = Form(20),
+):
+    """IMPORT-2: dry-run parse. Does NOT persist anything.
+
+    Returns the diagnostics payload (report_type, confidence, mapped fields,
+    unmatched headers, missing critical, warnings, capabilities) plus the
+    first `preview_rows` normalized rows so the user can inspect before
+    confirming the upload.
+    """
+    content = await file.read()
+    if len(content) > 25 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Archivo > 25MB. Divide el reporte.")
+    try:
+        preview_rows = max(0, min(int(preview_rows), 100))
+    except (TypeError, ValueError):
+        preview_rows = 20
+    try:
+        parsed = parse_ads_file(
+            content, file.filename or "report.csv", preview_rows=preview_rows,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"No se pudo leer el archivo: {e}")
+    if parsed["row_count"] == 0:
+        raise HTTPException(status_code=400, detail="El archivo no contiene filas.")
+    return {
+        "row_count": parsed["row_count"],
+        "ad_type": parsed["ad_type"],
+        "headers_detected": parsed["headers_detected"],
+        "kpis": parsed["kpis"],
+        "sample_rows": parsed["rows"],
+        "diagnostics": parsed["diagnostics"],
+    }
+
 
 
 @api.get("/datasets")

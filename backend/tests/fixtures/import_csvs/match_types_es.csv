@@ -1,0 +1,5 @@
+Nombre de la campaña,Grupo de anuncios,Palabra clave,Tipo de concordancia,Término de búsqueda,Impresiones,Clics,Gasto,Ventas totales,Pedidos totales
+CampA,AG,yoga book,Exacta,yoga book,500,20,8.00,60.00,3
+CampA,AG,mindful,Frase,mindful eating,700,15,5.00,15.00,1
+CampA,AG,zen,Amplia,zen guide,900,10,4.00,0.00,0
+CampA,AG,-,Automática,dash diet quick,1200,25,10.00,45.00,2

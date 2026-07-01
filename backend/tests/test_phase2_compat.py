@@ -76,9 +76,11 @@ def test_importer_response_identical_to_phase2_fixture():
             httpx.delete(f"{API}/datasets/{new_id}", timeout=10)
         except Exception:
             pass
-    assert _canonical(payload, ("id", "created_at")) == _canonical(snap), (
+    assert _canonical(payload, ("id", "created_at", "diagnostics")) == _canonical(snap), (
         "Importer response changed during Phase 2! "
-        "The importer must remain untouched."
+        "The importer must remain untouched. "
+        "(IMPORT-2: `diagnostics` is an additive key surfaced by the "
+        "stabilization work and is excluded from this byte-equivalent check.)"
     )
 
 

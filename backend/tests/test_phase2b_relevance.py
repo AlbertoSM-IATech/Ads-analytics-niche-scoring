@@ -168,7 +168,8 @@ def test_imports_upload_unchanged_in_phase2b():
         except Exception:
             pass
     # Drop volatile keys for comparison
-    for k in ("id", "created_at"):
+    # IMPORT-2: `diagnostics` is additive (report_type/warnings/capabilities).
+    for k in ("id", "created_at", "diagnostics"):
         payload.pop(k, None)
     assert json.dumps(payload, sort_keys=True, indent=2, default=str) == \
            json.dumps(snap, sort_keys=True, indent=2, default=str), (

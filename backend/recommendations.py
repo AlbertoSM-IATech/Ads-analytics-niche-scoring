@@ -122,17 +122,19 @@ class Recommendation(BaseModel):
 # ============================================================================
 
 def normalize_match_type(value: Optional[str]) -> Optional[str]:
-    """Normalize Amazon-style match type strings to the canonical form."""
-    if not value:
-        return None
-    v = str(value).strip().lower()
-    mapping = {
-        "automatic": "auto",
-        "broad match": "broad",
-        "phrase match": "phrase",
-        "exact match": "exact",
-    }
-    return mapping.get(v, v)
+    """Normalize Amazon-style match type strings to the canonical form.
+
+    Delegates to `amazon_ads.normalize_match_type` (IMPORT-2) which supports
+    EN / ES / IT variants: exact/exacta/esatta → 'exact',
+    phrase/frase → 'phrase', broad/amplia/ampia/generica → 'broad',
+    auto/automatic/automática/automatica → 'auto'.
+
+    New imports store the canonical form at parse time, but older datasets
+    may still carry raw labels — hence normalization here is required as
+    defense in depth.
+    """
+    from amazon_ads import normalize_match_type as _amz_norm
+    return _amz_norm(value)
 
 
 def _matches_irrelevant_pattern(term: Optional[str]) -> Optional[str]:
